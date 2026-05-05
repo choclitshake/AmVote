@@ -8,7 +8,8 @@ import { useWallet } from '@meshsdk/react'
 
 export function Dashboard() {
   const { connected } = useWallet()
-  const { getVoteCount, txHash, hasUserVoted } = useContract()
+  // const { getVoteCount, txHash, hasUserVoted } = useContract()
+  const { getVoteCount } = useContract()
   const [voteCount, setVoteCount] = useState(0)
   const [isLoadingVotes, setIsLoadingVotes] = useState(false)
   const [userVoted, setUserVoted] = useState(false)
@@ -26,38 +27,46 @@ export function Dashboard() {
     fetchVoteCount()
     const interval = setInterval(fetchVoteCount, 10000)
     return () => clearInterval(interval)
-  }, [getVoteCount])
+  }, [])
+  // }, [getVoteCount])
 
   // Check if user voted
-  useEffect(() => {
-    const checkVoteStatus = async () => {
-      const voted = await hasUserVoted()
-      setUserVoted(voted)
-    }
+  // useEffect(() => {
+  //   const checkVoteStatus = async () => {
+  //     const voted = await hasUserVoted()
+  //     setUserVoted(voted)
+  //   }
 
-    if (connected) {
-      checkVoteStatus()
-    }
-  }, [connected, hasUserVoted])
+  //   if (connected) {
+  //     checkVoteStatus()
+  //   }
+  // }, [connected, hasUserVoted])
 
   // Update transaction hash
-  useEffect(() => {
-    if (txHash) {
-      setLastTxHash(txHash)
-      setTimeout(async () => {
-        const voted = await hasUserVoted()
-        setUserVoted(voted)
-      }, 3000)
-    }
-  }, [txHash, hasUserVoted])
+  // useEffect(() => {
+  //   if (txHash) {
+  //     setLastTxHash(txHash)
+  //     setTimeout(async () => {
+  //       const voted = await hasUserVoted()
+  //       setUserVoted(voted)
+  //     }, 3000)
+  //   }
+  // }, [txHash, hasUserVoted])
 
   const handleVoteSuccess = (txHash: string) => {
     console.log('Vote successful:', txHash)
-    setTimeout(async () => {
-      const count = await getVoteCount()
-      setVoteCount(count)
-    }, 5000)
+    setLastTxHash(txHash)
+    setUserVoted(true)
+    setVoteCount(c => c + 1)
   }
+
+  // const handleVoteSuccess = (txHash: string) => {
+  //   console.log('Vote successful:', txHash)
+  //   setTimeout(async () => {
+  //     const count = await getVoteCount()
+  //     setVoteCount(count)
+  //   }, 5000)
+  // }
 
   const handleVoteError = (error: string) => {
     console.error('Vote error:', error)
@@ -104,7 +113,7 @@ export function Dashboard() {
               </p>
               {lastTxHash && (
                 <a
-                  href={`https://testnet.cardanoscan.io/transaction/${lastTxHash}`}
+                  href={`https://preview.cardanoscan.io/transaction/${lastTxHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block mt-4 text-green-600 hover:text-green-800 font-semibold text-sm underline"
@@ -130,7 +139,7 @@ export function Dashboard() {
             {lastTxHash}
           </p>
           <a
-            href={`https://testnet.cardanoscan.io/transaction/${lastTxHash}`}
+            href={`https://preview.cardanoscan.io/transaction/${lastTxHash}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition font-semibold text-sm"
