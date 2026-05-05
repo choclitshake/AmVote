@@ -18,4 +18,8 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+<<<<<<< HEAD
 ])
+=======
+])
+>>>>>>> origin/main
