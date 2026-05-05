@@ -21,7 +21,7 @@ AmVote is a decentralized voting application built on Cardano that ensures trans
 
 #### 1. Clone Repository
 ```bash
-git clone https://github.com/YOUR_ORG/AmVote.git
+git clone https://github.com/choclitshake/AmVote
 cd AmVote
 ```
 
