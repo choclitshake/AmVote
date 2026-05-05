@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useWallet } from '@meshsdk/react'
 import { MeshTxBuilder, BlockfrostProvider } from '@meshsdk/core'
 import * as CBOR from 'cbor-js'
@@ -7,14 +7,17 @@ import { bech32 } from 'bech32'
 
 const CONTRACT_ADDRESS = 'addr_test1wpg4cz6hz0c8q55z8pyejj35e7wx8schf4nmyxcr4ucq90c2jqfh9'
 const BLOCKFROST_KEY = import.meta.env.VITE_BLOCKFROST_KEY as string
+const VOTE_STORAGE_KEY = 'amvote_txhash'
 
 interface UseContractReturn {
     submitVote: () => Promise<string | null>
     getVoteCount: () => Promise<number>
     hasUserVoted: () => Promise<boolean>
+    getPreviousVoteTxHash: () => string | null
     isLoading: boolean
     error: string | null
     txHash: string | null
+    previousTxHash: string | null
 }
 
 function parseCborUtxo(cborHex: string) {
@@ -44,15 +47,78 @@ function assembleTransaction(unsignedTxHex: string, witnessHex: string): string 
     return '84' + txBodyHex + witnessHex + 'f5' + 'd90103a0'
 }
 
+function getStorageKey(walletAddress: string): string {
+    return `${VOTE_STORAGE_KEY}_${walletAddress}`
+}
+
+function saveVoteTxHash(walletAddress: string, txHash: string): void {
+    localStorage.setItem(getStorageKey(walletAddress), txHash)
+}
+
+function loadVoteTxHash(walletAddress: string): string | null {
+    return localStorage.getItem(getStorageKey(walletAddress))
+}
+
 export function useContract(): UseContractReturn {
     const { wallet, connected } = useWallet()
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [txHash, setTxHash] = useState<string | null>(null)
+    const [previousTxHash, setPreviousTxHash] = useState<string | null>(null)
+    const [walletAddress, setWalletAddress] = useState<string | null>(null)
+
+    // Resolve wallet address and check for previous vote on connect
+    useEffect(() => {
+        if (!connected || !wallet) {
+            setWalletAddress(null)
+            setPreviousTxHash(null)
+            return
+        }
+
+        const init = async () => {
+            try {
+                const rawAddr = await wallet.getChangeAddress()
+                const addr = rawAddr.startsWith('addr')
+                    ? rawAddr
+                    : hexAddressToBech32(rawAddr)
+                setWalletAddress(addr)
+
+                const stored = loadVoteTxHash(addr)
+                if (stored) {
+                    setPreviousTxHash(stored)
+                }
+            } catch (err) {
+                console.error('Error initializing wallet address:', err)
+            }
+        }
+
+        init()
+    }, [connected, wallet])
+
+    const getPreviousVoteTxHash = useCallback((): string | null => {
+        return previousTxHash
+    }, [previousTxHash])
+
+    const hasUserVoted = useCallback(async (): Promise<boolean> => {
+        try {
+            if (!wallet || !walletAddress) return false
+            const stored = loadVoteTxHash(walletAddress)
+            return stored !== null
+        } catch (err) {
+            console.error('Error checking vote status:', err)
+            return false
+        }
+    }, [wallet, walletAddress])
 
     const submitVote = useCallback(async (): Promise<string | null> => {
         if (!connected || !wallet) {
             setError('Wallet not connected')
+            return null
+        }
+
+        // Block if already voted
+        if (walletAddress && loadVoteTxHash(walletAddress)) {
+            setError('You have already voted with this wallet.')
             return null
         }
 
@@ -91,6 +157,12 @@ export function useContract(): UseContractReturn {
             const fullSignedTx = assembleTransaction(unsignedTx, signedWitnesses)
             const submittedTxHash = await blockfrostProvider.submitTx(fullSignedTx)
 
+            // Persist vote to localStorage
+            if (walletAddress) {
+                saveVoteTxHash(walletAddress, submittedTxHash)
+                setPreviousTxHash(submittedTxHash)
+            }
+
             setTxHash(submittedTxHash)
             return submittedTxHash
         } catch (err) {
@@ -100,18 +172,7 @@ export function useContract(): UseContractReturn {
         } finally {
             setIsLoading(false)
         }
-    }, [connected, wallet])
-
-    const hasUserVoted = useCallback(async (): Promise<boolean> => {
-        try {
-            if (!wallet) return false
-            // TODO: Query contract voters list via Blockfrost (Increment 2)
-            return false
-        } catch (err) {
-            console.error('Error checking vote status:', err)
-            return false
-        }
-    }, [wallet])
+    }, [connected, wallet, walletAddress])
 
     const getVoteCount = useCallback(async (): Promise<number> => {
         try {
@@ -123,5 +184,14 @@ export function useContract(): UseContractReturn {
         }
     }, [])
 
-    return { submitVote, getVoteCount, hasUserVoted, isLoading, error, txHash }
+    return {
+        submitVote,
+        getVoteCount,
+        hasUserVoted,
+        getPreviousVoteTxHash,
+        isLoading,
+        error,
+        txHash,
+        previousTxHash,
+    }
 }

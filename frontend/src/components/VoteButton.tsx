@@ -9,7 +9,7 @@ interface VoteButtonProps {
 
 export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
     const { connected } = useWallet()
-    const { submitVote, isLoading, error, txHash, hasUserVoted } = useContract()
+    const { submitVote, isLoading, error, txHash, hasUserVoted, previousTxHash } = useContract()
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [voteSubmitted, setVoteSubmitted] = useState(false)
     const [userAlreadyVoted, setUserAlreadyVoted] = useState(false)
@@ -134,14 +134,30 @@ export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
 
     // User already voted
     if (userAlreadyVoted) {
-    return (
-        <div className="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-6 max-w-md">
-        <h3 className="text-lg font-bold text-yellow-700 mb-2">✓ You Have Voted</h3>
-        <p className="text-sm text-yellow-600">
-            You have already voted in this election. Each wallet can only vote once.
-        </p>
-        </div>
-    )
+        return (
+            <div className="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-6 max-w-md">
+                <h3 className="text-lg font-bold text-yellow-700 mb-2">✓ You Have Already Voted</h3>
+                <p className="text-sm text-yellow-600 mb-4">
+                    Each wallet can only vote once. Your vote is permanently recorded on the blockchain.
+                </p>
+                {previousTxHash && (
+                    <div>
+                        <p className="text-xs text-yellow-700 font-semibold mb-1">Your transaction:</p>
+                        <p className="text-xs font-mono text-gray-700 break-all bg-yellow-100 p-2 rounded mb-3">
+                            {previousTxHash}
+                        </p>
+                        <a
+                            href={`https://preview.cardanoscan.io/transaction/${previousTxHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 transition font-semibold text-sm"
+                        >
+                            View on Cardano Scan →
+                        </a>
+                    </div>
+                )}
+            </div>
+        )
     }
 
     // Default: vote button
