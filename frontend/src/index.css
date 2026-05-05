@@ -1,10 +1,7 @@
-<<<<<<< HEAD
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-=======
->>>>>>> origin/main
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -68,11 +65,6 @@ body {
   text-align: center;
   border-inline: 1px solid var(--border);
   min-height: 100svh;
-<<<<<<< HEAD
-=======
-  display: flex;
-  flex-direction: column;
->>>>>>> origin/main
   box-sizing: border-box;
 }
 
