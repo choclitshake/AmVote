@@ -42,7 +42,7 @@ aiken build
 ```
 
 ### Project Structure
-AmVote/
+```AmVote/
 ├── frontend/              # React app (P2, P3, P4 work here)
 │   ├── src/
 │   │   ├── components/   # Reusable React components
@@ -61,6 +61,7 @@ AmVote/
 │   ├── INCREMENT_2.md
 │   └── SETUP.md
 └── README.md
+```
 
 ### Development Workflow
 
@@ -69,10 +70,11 @@ AmVote/
 - `feature/[feature-name]` - Feature branches
 
 #### Commit Convention
-[P1] Aiken: Add vote counter contract
+```[P1] Aiken: Add vote counter contract
 [P2] Frontend: Implement wallet connection
 [P3] UI: Build dashboard layout
 [P4] Integration: Connect contract to frontend
+```
 
 ### Deployment
 
