@@ -1,4 +1,9 @@
-export function VoteCard({ title, voteCount }) {
+interface VoteCardProps {
+  title: string;
+  voteCount: number;
+}
+
+export function VoteCard({ title, voteCount }: VoteCardProps) {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-xl font-semibold">{title}</h3>

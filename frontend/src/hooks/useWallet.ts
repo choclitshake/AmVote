@@ -1,4 +1,3 @@
-// frontend/src/hooks/useWallet.js
 import { useWallet as useMeshWallet } from '@meshsdk/react';
 import { useEffect, useState } from 'react';
 
