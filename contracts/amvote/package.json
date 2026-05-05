@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@aiken-lang/aiken": "^1.1.21"
+  }
+}

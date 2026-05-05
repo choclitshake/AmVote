@@ -1,0 +1,7 @@
+{
+  "type": "PlutusV2",
+  "bytes": "[REPLACE_WITH_P1_CONTRACT_BYTECODE]",
+  "contractAddress": "addr_test1[REPLACE_WITH_P1_ADDRESS]",
+  "contractName": "AmVoteCounter",
+  "description": "Simple vote counter contract for AmVote dApp"
+}
