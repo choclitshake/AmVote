@@ -88,3 +88,33 @@ Every election UTxO MUST have a datum attached. The validator routes to the corr
 2. **REMOVE CANDIDATE**: Checks that the owner signed the transaction, election is still open, and the candidate actually exists.
 3. **CAST VOTE**: Checks that the election is still open, at least one candidate is registered, the target candidate exists, transaction is within the voting deadline window, at least one wallet signed the transaction (the voter), and none of the signatories have already voted (no double-vote).
 4. **CLOSE ELECTION**: Checks that the owner signed the transaction and the election is currently open.
+
+
+## Deployment & Usage
+
+### How to Build the Contract
+To compile the smart contract and generate the Plutus blueprint (`plutus.json`), run the following command from the `contracts/amvote` directory:
+
+```bash
+aiken build
+```
+This command checks the syntax, type-checks the code, runs all unit tests, and outputs the compiled UPLC (Untyped Plutus Core) code into the `plutus.json` file. The frontend uses this file to interact with the contract.
+
+### How to Deploy to Testnet
+Unlike traditional smart contracts (like Ethereum), Cardano smart contracts don't need to be "deployed" to the blockchain beforehand. Instead, you generate the script address and lock funds at that address using a transaction.
+
+To generate the testnet address for the compiled contract, run:
+
+```bash
+aiken address
+```
+
+This will output the testnet address based on the compiled script. You then construct an on-chain transaction (usually via the frontend using MeshSDK) that sends a UTxO to this address, attaching the initial `ElectionDatum` state.
+
+### Contract Address on Testnet
+The compiled AmVote contract address on the Cardano Preprod/Preview Testnet is:
+
+```
+addr_test1wpg4cz6hz0c8q55z8pyejj35e7wx8schf4nmyxcr4ucq90c2jqfh9
+```
+*(Note: If you modify the contract logic, `aiken build` will change the script hash, and this address will automatically change).*
