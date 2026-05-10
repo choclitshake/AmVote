@@ -66,33 +66,33 @@ export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
 
     // Success state
     if (voteSubmitted && txHash) {
-    return (
-        <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 max-w-md">
-        <div className="flex items-center gap-2 mb-3">
-            <span className="text-3xl">✓</span>
-            <h3 className="text-xl font-bold text-green-700">Vote Submitted!</h3>
-        </div>
+        return (
+            <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 max-w-md">
+            <div className="flex items-center gap-2 mb-3">
+                <span className="text-3xl">✓</span>
+                <h3 className="text-xl font-bold text-green-700">Vote Submitted!</h3>
+            </div>
 
-        <p className="text-sm text-green-600 mb-2 font-semibold">Transaction Hash:</p>
-        <p className="text-xs font-mono text-gray-700 break-all bg-green-100 p-3 rounded mb-4">
-            {txHash}
-        </p>
+            <p className="text-sm text-green-600 mb-2 font-semibold">Transaction Hash:</p>
+            <p className="text-xs font-mono text-gray-700 break-all bg-green-100 p-3 rounded mb-4">
+                {txHash}
+            </p>
 
-        <p className="text-sm text-gray-700 mb-4">
-            Your vote has been recorded on the Cardano blockchain and cannot be changed.
-        </p>
+            <p className="text-sm text-gray-700 mb-4">
+                Your vote has been recorded on the Cardano blockchain and cannot be changed.
+            </p>
 
-        
-        <a
-            href={`https://testnet.cardanoscan.io/transaction/${txHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition font-semibold text-sm"
-        >
-            View on Cardano Scan →
-        </a>
-        </div>
-    )
+            
+            <a
+                href={`https://testnet.cardanoscan.io/transaction/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition font-semibold text-sm"
+            >
+                View on Cardano Scan →
+            </a>
+            </div>
+        )
     }
 
     // Confirmation dialog

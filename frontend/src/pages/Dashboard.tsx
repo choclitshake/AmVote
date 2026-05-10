@@ -60,14 +60,6 @@ export function Dashboard() {
     setVoteCount(c => c + 1)
   }
 
-  // const handleVoteSuccess = (txHash: string) => {
-  //   console.log('Vote successful:', txHash)
-  //   setTimeout(async () => {
-  //     const count = await getVoteCount()
-  //     setVoteCount(count)
-  //   }, 5000)
-  // }
-
   const handleVoteError = (error: string) => {
     console.error('Vote error:', error)
   }
