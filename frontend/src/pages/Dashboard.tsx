@@ -2,53 +2,56 @@ import { useState } from 'react';
 import { WalletConnect } from '../components/WalletConnect';
 import { Ballot } from '../components/Ballot';
 import { VoteCard } from '../components/VoteCard';
+import { useContract } from '../hooks/useContract';
+import { electionData, electionSettings } from '../data/electionData';
+import type { BallotChoices } from '../lib/metadataSchema';
 
-const MOCK_ELECTION = {
-  title: '2025 Barangay Elections',
-  status: 'Active',
-  positions: [
-    {
-      id: 'president',
-      title: 'President',
-      maxChoices: 1,
-      candidates: [
-        { id: 'p1', name: 'Juan dela Cruz', party: 'Partido ng Bayan', position: 'President' },
-        { id: 'p2', name: 'Maria Santos', party: 'Lakas ng Masa', position: 'President' },
-      ],
-    },
-    {
-      id: 'vp',
-      title: 'Vice President',
-      maxChoices: 1,
-      candidates: [
-        { id: 'vp1', name: 'Pedro Reyes', party: 'Partido ng Bayan', position: 'Vice President' },
-        { id: 'vp2', name: 'Ana Lim', party: 'Lakas ng Masa', position: 'Vice President' },
-      ],
-    },
-    {
-      id: 'senators',
-      title: 'Senators',
-      maxChoices: 3,
-      candidates: [
-        { id: 's1', name: 'Jose Rizal Jr.', party: 'Partido ng Bayan', position: 'Senator' },
-        { id: 's2', name: 'Andres B.', party: 'Lakas ng Masa', position: 'Senator' },
-        { id: 's3', name: 'Emilio A.', party: 'Independent', position: 'Senator' },
-        { id: 's4', name: 'Gabriela S.', party: 'Partido ng Bayan', position: 'Senator' },
-      ],
-    },
-  ],
-};
+// Build positions array from electionData
+const positions = [
+  {
+    id: electionData.president.id,
+    title: electionData.president.name,
+    maxChoices: electionData.president.maxSelections,
+    candidates: electionData.president.candidates.map(c => ({
+      id: c.id, name: c.name, party: c.party, position: 'President'
+    })),
+  },
+  {
+    id: electionData.vice_president.id,
+    title: electionData.vice_president.name,
+    maxChoices: electionData.vice_president.maxSelections,
+    candidates: electionData.vice_president.candidates.map(c => ({
+      id: c.id, name: c.name, party: c.party, position: 'Vice President'
+    })),
+  },
+  {
+    id: electionData.senators.id,
+    title: electionData.senators.name,
+    maxChoices: electionData.senators.maxSelections,
+    candidates: electionData.senators.candidates.map(c => ({
+      id: c.id, name: c.name, party: c.party, position: 'Senator'
+    })),
+  },
+];
 
 export function Dashboard() {
-  const [voteStatus, setVoteStatus] = useState<'idle' | 'loading' | 'pending' | 'confirmed' | 'failed' | 'already_voted'>('idle');
-  const [txHash, setTxHash] = useState('');
+  const { submitVote, isLoading, error, txHash } = useContract();
+  const [voteStatus, setVoteStatus] = useState<
+    'idle' | 'loading' | 'confirmed' | 'failed'
+  >('idle');
 
   const handleSubmit = async (selections: Record<string, string[]>) => {
-    setVoteStatus('pending');
-    setTimeout(() => {
-      setVoteStatus('confirmed');
-      setTxHash('mock_tx_hash_abc123');
-    }, 2000);
+    setVoteStatus('loading');
+
+    // Map generic selections → BallotChoices schema
+    const ballot: BallotChoices = {
+      p:  (selections['president']     ?? [])[0] ?? '',
+      vp: (selections['vice_president'] ?? [])[0] ?? '',
+      s:   selections['senators']       ?? [],
+    };
+
+    const hash = await submitVote(ballot);
+    setVoteStatus(hash ? 'confirmed' : 'failed');
   };
 
   return (
@@ -68,11 +71,11 @@ export function Dashboard() {
         {/* Election Info */}
         <div className="bg-white rounded-xl shadow p-6 flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">{MOCK_ELECTION.title}</h2>
-            <p className="text-sm text-gray-500 mt-1">Cast your vote securely on the blockchain</p>
+            <h2 className="text-xl font-bold text-gray-800">{electionSettings.title}</h2>
+            <p className="text-sm text-gray-500 mt-1">{electionSettings.description}</p>
           </div>
           <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-            {MOCK_ELECTION.status}
+            Active
           </span>
         </div>
 
@@ -80,27 +83,38 @@ export function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <VoteCard title="Total Votes Cast" voteCount={0} />
           <VoteCard title="Active Voters" voteCount={0} />
-          <VoteCard title="Positions" voteCount={MOCK_ELECTION.positions.length} />
+          <VoteCard title="Positions" voteCount={positions.length} />
         </div>
 
-        {/* Vote status banner */}
-        {voteStatus === 'confirmed' && (
+        {/* Error banner */}
+        {error && (
+          <div className="bg-red-50 border border-red-300 rounded-xl p-4 text-red-700 text-sm">
+            ❌ {error}
+          </div>
+        )}
+
+        {/* Success state */}
+        {voteStatus === 'confirmed' && txHash && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-green-800">
-            ✅ Your vote has been recorded on the Cardano blockchain!
-              {txHash && (
-                            <p className="block mt-1 text-sm underline">
-                              View transaction: {txHash}
-                            </p>
-                          )}
-                        </div>
-                      )}
+            <p className="font-semibold">✅ Your vote has been recorded on the Cardano blockchain!</p>
+            <p className="text-xs font-mono mt-2 break-all bg-green-100 p-2 rounded">{txHash}</p>
+            <a
+              href={`${electionSettings.explorerBaseUrl}/${txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm underline font-semibold mt-2 block"
+            >
+              View on CardanoScan →
+            </a>
+          </div>
+        )}
 
         {/* Ballot */}
         {voteStatus !== 'confirmed' && (
           <Ballot
-            positions={MOCK_ELECTION.positions}
+            positions={positions}
             onSubmit={handleSubmit}
-            disabled={voteStatus === 'pending'}
+            disabled={isLoading || voteStatus === 'loading'}
           />
         )}
       </div>
