@@ -1,23 +1,30 @@
-pub type Candidate {
-  id: Int,
+pub type Position {
   name: ByteArray,
-  vote_count: Int,
+  max_choices: Int,
+}
+
+pub type ElectionStatus {
+  NotStarted
+  Active
+  Closed
+}
+
+pub type Candidate {
+  id: ByteArray, // short ID
+  name: ByteArray,
+  party: ByteArray,
+  region: ByteArray,
 }
 
 pub type ElectionDatum {
   owner: ByteArray,
   title: ByteArray,
-  candidates: List<Candidate>,
-  voters: List<ByteArray>,
+  status: ElectionStatus,
+  positions: List<Position>,
   deadline_start: Int,
   deadline_end: Int,
-  is_open: Bool,
-  next_candidate_id: Int,
 }
 
 pub type ElectionRedeemer {
-  AddCandidate { name: ByteArray }
-  RemoveCandidate { candidate_id: Int }
-  CastVote { candidate_id: Int }
-  CloseElection
+  UpdateStatus { status: ElectionStatus }
 }
