@@ -2,10 +2,10 @@ import { bech32 } from 'bech32'
 import { useVoting } from './useVoting'
 
 // Fix for cbor-js missing types — declare inline so no @types needed
-declare module 'cbor-js' {
-  export function decode(buffer: ArrayBuffer): any
-  export function encode(value: any): ArrayBuffer
-}
+// declare module 'cbor-js' {
+//   export function decode(buffer: ArrayBuffer): any
+//   export function encode(value: any): ArrayBuffer
+// }
 import * as CBOR from 'cbor-js'
 
 // ── Exported helpers (reusable by other hooks) ────────────────────────────────
