@@ -13,12 +13,12 @@ pub fn is_eligible_voter(voters: List<ByteArray>, voter_pkh: ByteArray) -> Bool 
 
 pub fn find_candidate(
   candidates: List<Candidate>,
-  candidate_id: Int,
+  candidate_id: ByteArray,
 ) -> Option<Candidate> {
   list.find(candidates, fn(c) { c.id == candidate_id })
 }
 
-pub fn candidate_exists(candidates: List<Candidate>, candidate_id: Int) -> Bool {
+pub fn candidate_exists(candidates: List<Candidate>, candidate_id: ByteArray) -> Bool {
   when find_candidate(candidates, candidate_id) is {
     Some(_) -> True
     None -> False
