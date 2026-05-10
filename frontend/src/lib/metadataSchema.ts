@@ -1,8 +1,10 @@
+// frontend/src/lib/metadataSchema.ts
 export interface BallotChoices {
-  p: string; // President short ID
-  vp: string; // Vice President short ID
-  s: string[]; // Senators short IDs 
+  p: string;   // President candidate ID
+  vp: string;  // Vice President candidate ID
+  s: string[]; // Senator candidate IDs
 }
+
 export interface BallotMetadata {
   electionId: string;
   ballot: BallotChoices;

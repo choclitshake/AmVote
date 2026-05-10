@@ -3,9 +3,11 @@
 
 import { useState, useCallback } from 'react'
 import { useWallet } from '@meshsdk/react'
-import { MeshTxBuilder, BlockfrostProvider } from '@meshsdk/core'
+import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from '@meshsdk/core'
 import type { UTxO } from '@meshsdk/core'
 import type { BallotChoices, BallotMetadata } from '../lib/metadataSchema'
+import { bech32 } from 'bech32'
+import { assembleTransaction } from './useContract'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -91,6 +93,12 @@ function parseBlockchainError(err: unknown): VotingError {
   }
 }
 
+function hexAddressToBech32(hexAddr: string): string {
+  const bytes = new Uint8Array(hexAddr.match(/.{1,2}/g)!.map(b => parseInt(b, 16)))
+  const words = bech32.toWords(bytes)
+  return bech32.encode('addr_test', words, 1000)
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useVoting(): UseVotingReturn {
@@ -111,46 +119,56 @@ export function useVoting(): UseVotingReturn {
 
   // ── checkEligibility ────────────────────────────────────────────────────────
   const checkEligibility = useCallback(async (): Promise<boolean> => {
-    try {
-      // [T12] Wallet disconnected check
-      if (!wallet || !connected) {
-        setVotingError({ code: 'WALLET_DISCONNECTED', message: 'Wallet is not connected. Please connect your wallet first.' })
-        return false
-      }
+  try {
+    // ── DEBUG BYPASS ──────────────────────────────────────────────
+    // Set VITE_DEBUG_SKIP_TOKEN_CHECK=true in .env.local to skip
+    // token verification during development/testing.
+    const debugSkip = (import.meta as any).env?.VITE_DEBUG_SKIP_TOKEN_CHECK === 'true'
 
-      setStatus('checking')
+    if (!wallet || !connected) {
+      setVotingError({ code: 'WALLET_DISCONNECTED', message: 'Wallet is not connected. Please connect your wallet first.' })
+      return false
+    }
 
-      // [T12] Wrong network check
-      const networkId = await wallet.getNetworkId()
-      if (networkId !== EXPECTED_NETWORK_ID) {
-        setVotingError({ code: 'WRONG_NETWORK', message: 'Wrong network. Please switch to Cardano Preprod testnet in your Eternl wallet.' })
-        return false
-      }
+    setStatus('checking')
 
-      // [T12] Missing token check
-      const balance = await wallet.getBalanceMesh()
-      const hasToken = balance.some(
-        (asset: { unit: string; quantity: string }) =>
-          asset.unit === VOTE_ASSET_UNIT &&
-          parseInt(asset.quantity) > 0
-      )
+    const networkId = await wallet.getNetworkId()
+    if (networkId !== EXPECTED_NETWORK_ID) {
+      setVotingError({ code: 'WRONG_NETWORK', message: 'Wrong network. Please switch to Cardano Preprod testnet in your Eternl wallet.' })
+      return false
+    }
 
-      if (!hasToken) {
-        setVotingError({ code: 'MISSING_TOKEN', message: 'Not eligible: VOTE_2025_PH token not found in wallet.' })
-        return false
-      }
-
+    // Skip token check when debugging
+    if (debugSkip) {
+      console.warn('[DEBUG] Token check skipped — VITE_DEBUG_SKIP_TOKEN_CHECK=true')
       setStatus('idle')
       setError(null)
       setErrorCode(null)
       return true
+    }
 
-    } catch (err) {
-      console.error('[checkEligibility] Error:', err)
-      setVotingError({ code: 'UNKNOWN', message: 'Failed to check eligibility. Please try again.' })
+    const balance = await wallet.getBalanceMesh()
+    const hasToken = balance.some(
+      (asset: { unit: string; quantity: string }) =>
+        asset.unit === VOTE_ASSET_UNIT && parseInt(asset.quantity) > 0
+    )
+
+    if (!hasToken) {
+      setVotingError({ code: 'MISSING_TOKEN', message: 'Not eligible: VOTE_2025_PH token not found in wallet.' })
       return false
     }
-  }, [wallet, connected])
+
+    setStatus('idle')
+    setError(null)
+    setErrorCode(null)
+    return true
+
+  } catch (err) {
+    console.error('[checkEligibility] Error:', err)
+    setVotingError({ code: 'UNKNOWN', message: 'Failed to check eligibility. Please try again.' })
+    return false
+  }
+}, [wallet, connected])
 
   // ── submitBallot ──────────────────────────────────────────────────────────
   const submitBallot = useCallback(async (
@@ -181,7 +199,10 @@ export function useVoting(): UseVotingReturn {
       }
 
       // Step 3 — Get wallet data
-      const changeAddress       = await wallet.getChangeAddress()
+      const rawChangeAddress = await wallet.getChangeAddress()
+      const changeAddress = rawChangeAddress.startsWith('addr')
+        ? rawChangeAddress
+        : hexAddressToBech32(rawChangeAddress)
       const utxos: UTxO[]       = await wallet.getUtxosMesh()
       const collaterals: UTxO[] = await wallet.getCollateralMesh()
 
@@ -204,24 +225,26 @@ export function useVoting(): UseVotingReturn {
       }
 
       // Step 4 — Find vote token UTxO
+      const debugSkip = (import.meta as any).env?.VITE_DEBUG_SKIP_TOKEN_CHECK === 'true'
+
       const voteTokenUtxo = utxos.find((utxo: UTxO) =>
         utxo.output.amount.some(
           (a: { unit: string }) => a.unit === VOTE_ASSET_UNIT
         )
       )
 
-      if (!voteTokenUtxo) {
+      if (!voteTokenUtxo && !debugSkip) {
         setVotingError({ code: 'MISSING_TOKEN', message: 'Vote token UTxO not found. Token may not be in this wallet.' })
         setIsLoading(false)
         return null
       }
 
-      // [T12] No collateral check
-      if (!collaterals || collaterals.length === 0) {
-        setVotingError({ code: 'NO_COLLATERAL', message: 'No collateral set. In Eternl: Settings → Collateral → Set Collateral.' })
-        setIsLoading(false)
-        return null
-      }
+    //   // [T12] No collateral check
+    //   if (!collaterals || collaterals.length === 0) {
+    //     setVotingError({ code: 'NO_COLLATERAL', message: 'No collateral set. In Eternl: Settings → Collateral → Set Collateral.' })
+    //     setIsLoading(false)
+    //     return null
+    //   }
 
       // Step 5 — Build the transaction
       const provider  = new BlockfrostProvider(BLOCKFROST_KEY)
@@ -232,21 +255,32 @@ export function useVoting(): UseVotingReturn {
 
       txBuilder.selectUtxosFrom(utxos)
 
-      // Step 6 — Set collateral
-      const col = collaterals[0]
-      txBuilder.txInCollateral(
-        col.input.txHash,
-        col.input.outputIndex,
-        col.output.amount,
-        col.output.address
-      )
+      // Step 6 — Collateral only needed when running Plutus scripts (not in debug mode)
+      if (!debugSkip) {
+        if (!collaterals || collaterals.length === 0) {
+          setVotingError({ code: 'NO_COLLATERAL', message: 'No collateral set. In Eternl: Settings → Collateral → Set Collateral.' })
+          setIsLoading(false)
+          return null
+        }
+        const col = collaterals[0]
+        txBuilder.txInCollateral(
+          col.input.txHash,
+          col.input.outputIndex,
+          col.output.amount,
+          col.output.address
+        )
+      }
 
-      // Step 7 — Burn the vote token (T10)
-      txBuilder
-        .mint('-1', VOTE_POLICY_ID, VOTE_TOKEN_NAME_HEX)
-        .mintingScript('')          // TODO: replace '' with P1's parameterizedScript
-        .mintPlutusScriptV3()
-        .mintRedeemerValue({ alternative: 1, fields: [] })
+      // Step 7 — Burn the vote token (T10) -> skipped for debug purposes
+       if (!debugSkip) {
+        txBuilder
+          .mint('-1', VOTE_POLICY_ID, VOTE_TOKEN_NAME_HEX)
+          .mintingScript('')          // TODO: replace with parameterizedScript when real tokens are ready
+          .mintPlutusScriptV3()
+          .mintRedeemerValue({ alternative: 1, fields: [] })
+      } else {
+        console.warn('[DEBUG] Burn step skipped — VITE_DEBUG_SKIP_TOKEN_CHECK=true')
+      }
 
       // Step 8 — Attach ballot metadata (T11)
       // [T12] Validate metadata size before attaching
@@ -273,11 +307,23 @@ export function useVoting(): UseVotingReturn {
       // Step 10 — Sign
       setStatus('signing')
       const unsignedTx = await txBuilder.complete()
-      const signedTx   = await wallet.signTx(unsignedTx, true)
+
+      // Eternl returns witness-set only, not full tx — merge manually
+      const witnessSet = await wallet!.signTx(unsignedTx, true)
+      const fullSignedTx = BrowserWallet.addBrowserWitnesses(unsignedTx, witnessSet)
 
       // Step 11 — Submit
       setStatus('submitting')
-      const submittedHash = await wallet.submitTx(signedTx)
+      const submittedHash = await wallet!.submitTx(fullSignedTx)
+
+    //   // Step 10 — Sign
+    //   setStatus('signing')
+    //   const unsignedTx = await txBuilder.complete()
+    //   const signedTx   = await wallet!.signTx(unsignedTx, false)
+
+    //   // Step 11 — Submit
+    //   setStatus('submitting')
+    //   const submittedHash = await wallet!.submitTx(signedTx)
 
       setTxHash(submittedHash)
       setStatus('confirmed')
@@ -286,7 +332,7 @@ export function useVoting(): UseVotingReturn {
       return submittedHash
 
     } catch (err) {
-      // [T12] Parse all blockchain errors into friendly messages
+      console.error('[submitBallot] Raw error:', err)
       const votingError = parseBlockchainError(err)
       setVotingError(votingError)
       return null

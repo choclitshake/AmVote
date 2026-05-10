@@ -1,24 +1,19 @@
-// frontend/src/pages/Dashboard.tsx
-
-import { useVoting } from '../hooks/useVoting';
-import { useWallet } from '@meshsdk/react';
+import { useState } from 'react';
 import { WalletConnect } from '../components/WalletConnect';
 import { Ballot } from '../components/Ballot';
 import { VoteCard } from '../components/VoteCard';
+import { useContract } from '../hooks/useContract';
 import { electionData, electionSettings } from '../data/electionData';
 import type { BallotChoices } from '../lib/metadataSchema';
 
-// Convert electionData into the shape Ballot.tsx expects
+// Build positions array from electionData
 const positions = [
   {
     id: electionData.president.id,
     title: electionData.president.name,
     maxChoices: electionData.president.maxSelections,
     candidates: electionData.president.candidates.map(c => ({
-      id: c.id,
-      name: c.name,
-      party: c.party,
-      position: electionData.president.name,
+      id: c.id, name: c.name, party: c.party, position: 'President'
     })),
   },
   {
@@ -26,10 +21,7 @@ const positions = [
     title: electionData.vice_president.name,
     maxChoices: electionData.vice_president.maxSelections,
     candidates: electionData.vice_president.candidates.map(c => ({
-      id: c.id,
-      name: c.name,
-      party: c.party,
-      position: electionData.vice_president.name,
+      id: c.id, name: c.name, party: c.party, position: 'Vice President'
     })),
   },
   {
@@ -37,34 +29,30 @@ const positions = [
     title: electionData.senators.name,
     maxChoices: electionData.senators.maxSelections,
     candidates: electionData.senators.candidates.map(c => ({
-      id: c.id,
-      name: c.name,
-      party: c.party,
-      position: electionData.senators.name,
+      id: c.id, name: c.name, party: c.party, position: 'Senator'
     })),
   },
 ];
 
 export function Dashboard() {
-  const { connected } = useWallet();
-  const {
-    submitBallot,
-    status,
-    txHash,
-    error,
-    errorCode,
-    isLoading,
-  } = useVoting();
+  const { submitVote, isLoading, error, txHash } = useContract();
+  const [voteStatus, setVoteStatus] = useState<
+    'idle' | 'loading' | 'confirmed' | 'failed'
+  >('idle');
 
   const handleSubmit = async (selections: Record<string, string[]>) => {
-    // selections from Ballot.tsx is already Record<positionId, candidateId[]>
-    // which matches our updated BallotChoices type
-    const ballot: BallotChoices = selections;
-    await submitBallot(ballot, 'AMVOTE_2025_PH');
-  };
+    setVoteStatus('loading');
 
-  const isConfirmed = status === 'confirmed' && txHash;
-  const isPending = ['checking', 'building', 'signing', 'submitting'].includes(status);
+    // Map generic selections → BallotChoices schema
+    const ballot: BallotChoices = {
+      p:  (selections['president']     ?? [])[0] ?? '',
+      vp: (selections['vice_president'] ?? [])[0] ?? '',
+      s:   selections['senators']       ?? [],
+    };
+
+    const hash = await submitVote(ballot);
+    setVoteStatus(hash ? 'confirmed' : 'failed');
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -98,42 +86,23 @@ export function Dashboard() {
           <VoteCard title="Positions" voteCount={positions.length} />
         </div>
 
-        {/* Wallet warning */}
-        {!connected && (
-          <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-yellow-800 text-sm">
-            ⚠️ Connect your wallet above to cast your vote.
-          </div>
-        )}
-
         {/* Error banner */}
         {error && (
-          <div className="bg-red-50 border border-red-300 rounded-xl p-4 text-red-800 text-sm">
-            <p className="font-semibold">❌ {error}</p>
-            {errorCode === 'MISSING_TOKEN' && (
-              <p className="mt-1 text-xs">Contact the election admin to receive your VOTE_2025_PH token.</p>
-            )}
-            {errorCode === 'NO_COLLATERAL' && (
-              <p className="mt-1 text-xs">In Eternl: Settings → Collateral → Set Collateral.</p>
-            )}
-            {errorCode === 'WRONG_NETWORK' && (
-              <p className="mt-1 text-xs">Switch to Preprod testnet in your wallet settings.</p>
-            )}
+          <div className="bg-red-50 border border-red-300 rounded-xl p-4 text-red-700 text-sm">
+            ❌ {error}
           </div>
         )}
 
-        {/* Success receipt — T13 */}
-        {isConfirmed && txHash && (
-          <div className="bg-green-50 border border-green-300 rounded-xl p-6 text-green-800 space-y-3">
-            <p className="text-lg font-bold">✅ Vote recorded on the blockchain!</p>
-            <div>
-              <p className="text-xs text-green-600 font-semibold uppercase tracking-wide mb-1">Transaction Hash</p>
-              <p className="font-mono text-xs bg-green-100 rounded p-2 break-all">{txHash}</p>
-            </div>
+        {/* Success state */}
+        {voteStatus === 'confirmed' && txHash && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-green-800">
+            <p className="font-semibold">✅ Your vote has been recorded on the Cardano blockchain!</p>
+            <p className="text-xs font-mono mt-2 break-all bg-green-100 p-2 rounded">{txHash}</p>
             <a
               href={`${electionSettings.explorerBaseUrl}/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block text-sm font-semibold underline"
+              className="text-sm underline font-semibold mt-2 block"
             >
               View on CardanoScan →
             </a>
@@ -141,11 +110,11 @@ export function Dashboard() {
         )}
 
         {/* Ballot */}
-        {!isConfirmed && (
+        {voteStatus !== 'confirmed' && (
           <Ballot
             positions={positions}
             onSubmit={handleSubmit}
-            disabled={isPending || !connected || isLoading}
+            disabled={isLoading || voteStatus === 'loading'}
           />
         )}
       </div>
