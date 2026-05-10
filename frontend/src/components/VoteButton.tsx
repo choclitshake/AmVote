@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useContract } from '../hooks/useContract'
+import { useVoting } from '../hooks/useVoting'
 import { useWallet } from '@meshsdk/react'
+import type { VotingErrorCode } from '../hooks/useVoting'
 
 interface VoteButtonProps {
     onVoteSuccess?: (txHash: string) => void
@@ -10,6 +12,7 @@ interface VoteButtonProps {
 export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
     const { connected } = useWallet()
     const { submitVote, isLoading, error, txHash, hasUserVoted } = useContract()
+    const { status, errorCode } = useVoting()  // [T12] get status and errorCode
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [voteSubmitted, setVoteSubmitted] = useState(false)
     const [userAlreadyVoted, setUserAlreadyVoted] = useState(false)
@@ -64,7 +67,53 @@ export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
         setShowConfirmation(false)
     }
 
-    // Success state
+    // [T12] Status indicator — shows current transaction step
+    const StatusIndicator = () => {
+        const statusMap: Record<string, { label: string; color: string }> = {
+            checking:   { label: '🔍 Checking eligibility...', color: 'text-blue-600' },
+            building:   { label: '🔨 Building transaction...', color: 'text-blue-600' },
+            signing:    { label: '✍️ Waiting for wallet signature...', color: 'text-yellow-600' },
+            submitting: { label: '📡 Submitting to blockchain...', color: 'text-purple-600' },
+            confirmed:  { label: '✅ Transaction confirmed!', color: 'text-green-600' },
+        }
+        const current = statusMap[status]
+        if (!current) return null
+        return <p className={`text-sm font-medium mt-3 ${current.color}`}>{current.label}</p>
+    }
+
+    // [T12] Error banner — shows friendly message + helpful hint per error code
+    const ErrorBanner = () => {
+        if (!error) return null
+
+        const isWarning = errorCode === 'USER_CANCELLED'
+        const hints: Partial<Record<VotingErrorCode, string>> = {
+            WALLET_DISCONNECTED: 'Please connect your wallet using the button above.',
+            WRONG_NETWORK:       'Switch to Preprod testnet in Eternl: Settings → Network.',
+            MISSING_TOKEN:       'Contact the election admin to receive your VOTE_2025_PH token.',
+            INSUFFICIENT_ADA:    'Get testnet ADA from: faucet.cardano-testnet.iohkdev.io',
+            NO_COLLATERAL:       'In Eternl: Settings → Collateral → Set Collateral.',
+            METADATA_TOO_LARGE:  'Try reducing the number of candidates selected.',
+            TX_REJECTED:         'Please wait a moment and try submitting again.',
+            USER_CANCELLED:      'You cancelled. Click Confirm Vote to try again.',
+        }
+
+        const hint = errorCode ? hints[errorCode] : null
+
+        return (
+            <div className={`mt-4 border-2 rounded-lg p-4 ${isWarning ? 'bg-yellow-50 border-yellow-400' : 'bg-red-50 border-red-500'}`}>
+                <p className={`font-semibold text-sm ${isWarning ? 'text-yellow-700' : 'text-red-700'}`}>
+                    {isWarning ? '⚠️' : '❌'} {error}
+                </p>
+                {hint && (
+                    <p className={`text-xs mt-1 ${isWarning ? 'text-yellow-600' : 'text-red-600'}`}>
+                        💡 {hint}
+                    </p>
+                )}
+            </div>
+        )
+    }
+
+    // Success state — original P3 code unchanged
     if (voteSubmitted && txHash) {
     return (
         <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 max-w-md">
@@ -82,7 +131,6 @@ export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
             Your vote has been recorded on the Cardano blockchain and cannot be changed.
         </p>
 
-        
         <a
             href={`https://testnet.cardanoscan.io/transaction/${txHash}`}
             target="_blank"
@@ -95,7 +143,7 @@ export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
     )
     }
 
-    // Confirmation dialog
+    // Confirmation dialog — original P3 code + T12 additions
     if (showConfirmation) {
     return (
         <div className="bg-blue-50 border-2 border-blue-500 rounded-lg p-6 max-w-md">
@@ -123,16 +171,14 @@ export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
             </button>
         </div>
 
-        {error && (
-            <div className="mt-4 bg-red-50 border border-red-300 rounded p-3">
-            <p className="text-red-700 text-sm">{error}</p>
-            </div>
-        )}
+        {/* [T12] Status + Error banners */}
+        <StatusIndicator />
+        <ErrorBanner />
         </div>
     )
     }
 
-    // User already voted
+    // User already voted — original P3 code unchanged
     if (userAlreadyVoted) {
     return (
         <div className="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-6 max-w-md">
@@ -144,7 +190,7 @@ export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
     )
     }
 
-    // Default: vote button
+    // Default: vote button — original P3 code + T12 additions
     return (
     <div>
         <button
@@ -155,12 +201,9 @@ export function VoteButton({ onVoteSuccess, onVoteError }: VoteButtonProps) {
         {!connected ? 'Connect Wallet to Vote' : isLoading ? '⏳ Submitting Vote...' : '🗳️ Cast Your Vote'}
         </button>
 
-        {error && (
-        <div className="mt-4 bg-red-50 border-2 border-red-500 rounded-lg p-4">
-            <p className="text-red-700 font-semibold text-sm">❌ Error:</p>
-            <p className="text-red-600 text-sm mt-1">{error}</p>
-        </div>
-        )}
+        {/* [T12] Status + Error banners */}
+        <StatusIndicator />
+        <ErrorBanner />
     </div>
     )
 }
