@@ -1,9 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useWallet as useMeshWallet } from '@meshsdk/react'
 
-const VOTE_POLICY_ID      = '4e1cdbfe3e52395946921cf56878719cdfe211dde196a337df118864'
-const VOTE_TOKEN_NAME_HEX = '564f54455f323032355f5048' // hex of "VOTE_2025_PH"
-const VOTE_ASSET_UNIT     = VOTE_POLICY_ID + VOTE_TOKEN_NAME_HEX
+import { getVoteAssetUnit } from './useVoting'
 
 export interface WalletAsset {
   unit: string
@@ -58,10 +56,12 @@ export function useWallet(): UseWalletReturn {
         // 4. Check if wallet holds the VOTE_2025_PH token
         const hasToken = balance.some(
           (asset) =>
-            asset.unit === VOTE_ASSET_UNIT &&
+            asset.unit === getVoteAssetUnit() &&
             parseInt(asset.quantity) > 0
         )
-        setHasVoteToken(hasToken)
+        // DEBUG: force hasVoteToken=true when skip flag is set
+        const debugSkip = (import.meta as any).env?.VITE_DEBUG_SKIP_TOKEN_CHECK === 'true'
+        setHasVoteToken(hasToken || debugSkip)
 
         console.log('Address:', addr)
         console.log('Network ID:', netId)

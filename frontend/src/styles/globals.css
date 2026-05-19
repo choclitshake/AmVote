@@ -1,14 +1,1 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  background-color: #ffffff;
-  color: #000000;
-}
-
-#root {
-  padding: 20px;
-}
+/* globals.css — intentionally empty, styles are in index.css */

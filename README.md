@@ -6,7 +6,7 @@ AmVote is a decentralized voting application built on Cardano that ensures trans
 ## Tech Stack
 - **Frontend:** React + Vite, TypeScript, MeshSDK, TailwindCSS
 - **Smart Contracts:** Aiken
-- **Blockchain:** Cardano Testnet
+- **Blockchain:** Cardano Preview Testnet
 - **API:** Blockfrost
 
 ## Quick Start
@@ -88,7 +88,7 @@ npm run build
 # Contract
 cd contracts
 aiken build
-# Deploy to Cardano Testnet
+# Deploy to Cardano Preview Testnet
 ```
 
 ### Resources

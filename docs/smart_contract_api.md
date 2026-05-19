@@ -112,7 +112,7 @@ aiken address
 This will output the testnet address based on the compiled script. You then construct an on-chain transaction (usually via the frontend using MeshSDK) that sends a UTxO to this address, attaching the initial `ElectionDatum` state.
 
 ### Contract Address on Testnet
-The compiled AmVote contract address on the Cardano Preprod/Preview Testnet is:
+The compiled AmVote contract address on the Cardano Preview Testnet is:
 
 ```
 addr_test1wpg4cz6hz0c8q55z8pyejj35e7wx8schf4nmyxcr4ucq90c2jqfh9

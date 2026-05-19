@@ -65,7 +65,7 @@ async function main() {
   const parameterizedScript = applyParamsToScript(
     mintValidator.compiledCode,
     [adminPubKeyHash],
-    "JSON"
+    "Mesh"
   );
 
   const policyId = resolveScriptHash(parameterizedScript, "V3");
@@ -117,9 +117,9 @@ async function main() {
     if (voterAddress.startsWith("addr_test")) {
       // Add a mint action for 1 token
       txBuilder
+        .mintPlutusScriptV3()
         .mint("1", policyId, tokenNameHex)
         .mintingScript(parameterizedScript)
-        .mintPlutusScriptV3()
         // Note: We use MintVote redeemer. In token.ak: MintVote is index 0
         .mintRedeemerValue(mConStr0([]));
 
