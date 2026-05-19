@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { VerifyPage } from './pages/VerifyPage';
 import { AboutPage } from './pages/AboutPage';
+import { DevMintPage } from './pages/DevMintPage';
 import './index.css';
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/verify" element={<VerifyPage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/dev-mint" element={<DevMintPage />} />
       </Routes>
     </div>
   );

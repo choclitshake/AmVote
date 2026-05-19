@@ -14,26 +14,55 @@ import { assembleTransaction } from './useContract'
 const BLOCKFROST_KEY = (import.meta as any).env?.VITE_BLOCKFROST_KEY as string ?? ''
 
 const COMPILED_SCRIPT = '5901b5010100229800aba2aba1aab9faab9eaab9dab9a9bae002488888896600264653001300800198041804800cdc3a400130080024888966002600460126ea800e2646644b300130050018acc004c034dd5003c00a2c80722b30013370e9001000c566002601a6ea801e00516403916402c80584c8cc8966002600c601a6ea80222b3001323300100137586022602460246024602400844b30010018a508acc004cdc79bae301200100d8a518998010011809800a01c404513300100225980099b8f375c601c0029110c564f54455f323032355f504800899b8848000dd69807800c528201a8a50403113300100225980099b8f375c601c00291010c564f54455f323032355f504800899b88375a601e00290004528201a40306464660020026eacc04000c8966002003003899192cc004cdc8803800c56600266e3c01c00626eacc04400a00a807a26600800860280068078dd718078009808800a02014bd6f7b630111919800800801912cc00400629462b3001300330120018998010011809800c528201c4044601c601c601c601c60166ea8008c028dd50029bae300c300a3754007164020300800130043754011149a26cac80101'
-// Replace with the actual Admin PKH logged by mintVoteTokens.ts
-const ADMIN_PKH = 'REPLACE_WITH_ADMIN_PKH'
+// Admin PKH and Policy ID configuration (reads from localStorage for dev testing)
+/* OVERRIDE_START */
+import { DEFAULT_V3_COST_MODEL_LIST } from '@meshsdk/common';
+const CORRECT_350_LIST = [
+  100788, 420, 1, 1, 1000, 173, 0, 1, 1000, 59957, 4, 1, 11183, 32, 201305, 8356, 4, 16000, 100, 16000,
+  100, 16000, 100, 16000, 100, 16000, 100, 16000, 100, 100, 100, 16000, 100, 94375, 32, 132994, 32,
+  61462, 4, 72010, 178, 0, 1, 22151, 32, 91189, 769, 4, 2, 85848, 123203, 7305, -900, 1716, 960, 57,
+  85848, 0, 1, 1, 1000, 42921, 4, 2, 30623, 28755, 75, 1, 898148, 27279, 1, 51775, 558, 1, 39184, 1000,
+  60594, 1, 141895, 32, 83150, 32, 15299, 32, 76049, 1, 13169, 4, 22100, 10, 28999, 74, 1, 28999, 74, 1,
+  43285, 552, 1, 44749, 541, 1, 33852, 32, 68246, 32, 72362, 32, 7243, 32, 7391, 32, 11546, 32, 85848,
+  123203, 7305, -900, 1716, 960, 57, 85848, 0, 1, 90434, 519, 0, 1, 74433, 32, 85848, 123203, 7305, -900,
+  1716, 960, 57, 85848, 0, 0, 1, 1, 85848, 123203, 7305, -900, 1716, 960, 57, 85848, 1, 955506, 213312,
+  0, 2, 270652, 22588, 4, 1457325, 64566, 4, 20467, 1, 4, 0, 141992, 32, 100788, 420, 1, 1, 81663, 32,
+  59498, 32, 20142, 32, 24588, 32, 20744, 32, 25933, 32, 24623, 32, 43053543, 10, 53384111, 14333, 10,
+  43574283, 26308, 10, 16000, 100, 16000, 100, 962335, 18, 2780678, 6, 442008, 1, 52538055, 3756, 18,
+  267929, 18, 76433006, 8868, 18, 52948122, 18, 1995836, 36, 3227919, 12, 901022, 1, 166917843, 4307, 36,
+  284546, 36, 158221314, 26549, 36, 74698472, 36, 333849714, 1, 254006273, 72, 2174038, 72, 2261318,
+  64571, 4, 207616, 8310, 4, 1293828, 28716, 63, 0, 1, 1006041, 43623, 251, 0, 1, 100181, 726, 719, 0, 1,
+  100181, 726, 719, 0, 1, 100181, 726, 719, 0, 1, 107878, 680, 0, 1, 95336, 1, 281145, 18848, 0, 1, 180194,
+  159, 1, 1, 158519, 8942, 0, 1, 159378, 8813, 0, 1, 107490, 3298, 1, 106057, 655, 1, 1964219, 24520, 3,
+  607153, 231697, 53144, 0, 1, 116711, 1957, 4, 231883, 10, 1000, 24838, 7, 1, 232010, 32, 321837444,
+  25087669, 18, 617887431, 67302824, 36, 356924, 18413, 45, 21, 219951, 9444, 1, 1000, 172116, 183150, 6,
+  24, 21, 213283, 618401, 1998, 28258, 1, 1000, 38159, 2, 22, 1000, 95933, 1, 1, 11, 1000, 277577, 12, 21
+];
+if (DEFAULT_V3_COST_MODEL_LIST.length !== 350) {
+  console.log('Dynamically overriding DEFAULT_V3_COST_MODEL_LIST with 350 elements...');
+  DEFAULT_V3_COST_MODEL_LIST.length = 0;
+  DEFAULT_V3_COST_MODEL_LIST.push(...CORRECT_350_LIST);
+}
+/* OVERRIDE_END */
 
-// Lazy-initialize to avoid crash at module load when ADMIN_PKH is a placeholder
+export const getAdminPkh = () => localStorage.getItem('DEV_ADMIN_PKH') || 'REPLACE_WITH_ADMIN_PKH'
+export const getVotePolicyId = () => localStorage.getItem('DEV_VOTE_POLICY_ID') || '4e1cdbfe3e52395946921cf56878719cdfe211dde196a337df118864'
+
 let _parameterizedScript: string | null = null
 function getParameterizedScript(): string {
-  if (!_parameterizedScript) {
-    _parameterizedScript = applyParamsToScript(COMPILED_SCRIPT, [ADMIN_PKH], 'JSON')
-  }
+  // If the admin PKH changed in local storage, we should re-parameterize. 
+  // (In production, this would be a constant).
+  _parameterizedScript = applyParamsToScript(COMPILED_SCRIPT, [getAdminPkh()], 'Mesh')
   return _parameterizedScript
 }
 
-const VOTE_POLICY_ID      = '4e1cdbfe3e52395946921cf56878719cdfe211dde196a337df118864'
 const VOTE_TOKEN_NAME_HEX = '564f54455f323032355f5048' // hex of "VOTE_2025_PH"
-const VOTE_ASSET_UNIT     = VOTE_POLICY_ID + VOTE_TOKEN_NAME_HEX
+export const getVoteAssetUnit = () => getVotePolicyId() + VOTE_TOKEN_NAME_HEX
 
 const METADATA_LABEL_MSG  = 674
 const METADATA_LABEL_VOTE = 1337
 
-const EXPECTED_NETWORK_ID = 0 // 0 = testnet (Preprod)
+const EXPECTED_NETWORK_ID = 0 // 0 = testnet (Preview)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -147,7 +176,7 @@ export function useVoting(): UseVotingReturn {
 
     const networkId = await wallet.getNetworkId()
     if (networkId !== EXPECTED_NETWORK_ID) {
-      setVotingError({ code: 'WRONG_NETWORK', message: 'Wrong network. Please switch to Cardano Preprod testnet in your Eternl wallet.' })
+      setVotingError({ code: 'WRONG_NETWORK', message: 'Wrong network. Please switch to Cardano Preview testnet in your Eternl wallet.' })
       return false
     }
 
@@ -163,7 +192,7 @@ export function useVoting(): UseVotingReturn {
     const balance = await wallet.getBalanceMesh()
     const hasToken = balance.some(
       (asset: { unit: string; quantity: string }) =>
-        asset.unit === VOTE_ASSET_UNIT && parseInt(asset.quantity) > 0
+        asset.unit === getVoteAssetUnit() && parseInt(asset.quantity) > 0
     )
 
     if (!hasToken) {
@@ -242,7 +271,7 @@ export function useVoting(): UseVotingReturn {
 
       const voteTokenUtxo = utxos.find((utxo: UTxO) =>
         utxo.output.amount.some(
-          (a: { unit: string }) => a.unit === VOTE_ASSET_UNIT
+          (a: { unit: string }) => a.unit === getVoteAssetUnit()
         )
       )
 
@@ -276,20 +305,22 @@ export function useVoting(): UseVotingReturn {
           return null
         }
         const col = collaterals[0]
+        const colAddress = col.output?.address || changeAddress
+        const colAmount = col.output?.amount || [{ unit: 'lovelace', quantity: '5000000' }]
         txBuilder.txInCollateral(
           col.input.txHash,
           col.input.outputIndex,
-          col.output.amount,
-          col.output.address
+          colAmount,
+          colAddress
         )
       }
 
       // Step 7 — Burn the vote token (T10) -> skipped for debug purposes
        if (!debugSkip) {
         txBuilder
-          .mint('-1', VOTE_POLICY_ID, VOTE_TOKEN_NAME_HEX)
-          .mintingScript(getParameterizedScript())
           .mintPlutusScriptV3()
+          .mint('-1', getVotePolicyId(), VOTE_TOKEN_NAME_HEX)
+          .mintingScript(getParameterizedScript())
           .mintRedeemerValue(mConStr1([]))
       } else {
         console.warn('[DEBUG] Burn step skipped — VITE_DEBUG_SKIP_TOKEN_CHECK=true')

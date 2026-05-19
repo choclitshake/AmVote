@@ -112,7 +112,7 @@ export function VoteButton({ receipt, status = 'idle', error, errorCode, isLoadi
 
   const hints: Partial<Record<VotingErrorCode, string>> = {
     WALLET_DISCONNECTED: 'Connect your wallet using the button above.',
-    WRONG_NETWORK:       'Switch to Preprod testnet in your wallet settings.',
+    WRONG_NETWORK:       'Switch to Preview testnet in your wallet settings.',
     MISSING_TOKEN:       'Contact the election admin to receive your VOTE_2025_PH token.',
     INSUFFICIENT_ADA:    'Get testnet ADA from the Cardano testnet faucet.',
     NO_COLLATERAL:       'In Eternl: Settings → Collateral → Set Collateral.',

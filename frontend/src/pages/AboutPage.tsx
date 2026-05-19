@@ -4,7 +4,7 @@ import { electionSettings } from '../data/electionData';
 const VOTE_POLICY_ID = '4e1cdbfe3e52395946921cf56878719cdfe211dde196a337df118864';
 
 const steps = [
-  { num: '01', title: 'Receive Vote Token', desc: 'The election administrator mints one VOTE_2025_PH token to each eligible voter\'s wallet address on the Cardano Preprod testnet.' },
+  { num: '01', title: 'Receive Vote Token', desc: 'The election administrator mints one VOTE_2025_PH token to each eligible voter\'s wallet address on the Cardano Preview testnet.' },
   { num: '02', title: 'Connect Wallet', desc: 'Connect your Cardano wallet (Eternl or Lace) to AmVote. The app checks that you are on the correct network and hold the vote token.' },
   { num: '03', title: 'Cast Your Ballot', desc: 'Select your candidates for each position: President, Vice President, and Senators. Review your choices carefully before confirming.' },
   { num: '04', title: 'Sign Transaction', desc: 'Your ballot is encoded as on-chain metadata (label 1337) and attached to a transaction that burns your VOTE_2025_PH token. You sign the transaction in your wallet.' },
@@ -83,7 +83,7 @@ export function AboutPage() {
             </div>
             <div>
               <p className="text-xs text-text-muted font-body mb-1">Network</p>
-              <p className="font-mono text-sm text-text-primary">Cardano {electionSettings.network === 'preview' ? 'Preview Testnet' : 'Preprod Testnet'}</p>
+              <p className="font-mono text-sm text-text-primary">Cardano Preview Testnet</p>
             </div>
             <div>
               <p className="text-xs text-text-muted font-body mb-1">Contract Type</p>

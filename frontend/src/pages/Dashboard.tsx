@@ -88,7 +88,7 @@ export function Dashboard() {
                 Active
               </span>
               <span className="px-2.5 py-1 rounded-full text-xs font-mono bg-violet-500/15 text-violet-300 border border-violet-500/30">
-                Cardano {electionSettings.network === 'preview' ? 'Preview' : 'Preprod'}
+                Cardano Preview
               </span>
             </div>
           </div>

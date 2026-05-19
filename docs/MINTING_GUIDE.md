@@ -8,7 +8,7 @@ Before you can run the script, you need three things:
 
 1. **A Blockfrost API Key** 
    - Go to [Blockfrost.io](https://blockfrost.io/) and create a free account.
-   - Create a new project and select the **Preprod** (or Preview) network.
+   - Create a new project and select the **Preview** network.
    - Copy your `PROJECT_ID`.
 2. **An Admin Wallet (with tADA)**
    - You need a 24-word recovery phrase (mnemonic) for the wallet that will act as the "Admin".
@@ -44,7 +44,7 @@ The script needs your API key and Admin Mnemonic, but we don't hardcode these fo
 cd frontend
 
 # 2. Set the Blockfrost API Key
-$env:BLOCKFROST_PROJECT_ID="preprod..." 
+$env:BLOCKFROST_PROJECT_ID="preview..." 
 
 # 3. Set the Admin Mnemonic (keep the quotes!)
 $env:ADMIN_MNEMONIC="apple banana cherry dog elephant frog grape hat ice juice kite lemon..."
@@ -81,6 +81,6 @@ Successfully minted vote tokens! TxHash: e2b4c6d8...
 ```
 
 1. Copy the **TxHash** from the output.
-2. Go to a Cardano Testnet Explorer, such as [Preprod Cexplorer](https://preprod.cexplorer.io/).
+2. Go to a Cardano Testnet Explorer, such as [Preview Cexplorer](https://preview.cexplorer.io/).
 3. Paste the TxHash into the search bar. 
 4. You will be able to see the transaction confirmed on the blockchain, showing the newly minted `VOTE_2025_PH` tokens being deposited directly into your voters' wallets!
