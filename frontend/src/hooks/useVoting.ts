@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from 'react'
 import { useWallet } from '@meshsdk/react'
-import { MeshTxBuilder, BlockfrostProvider, BrowserWallet } from '@meshsdk/core'
+import { MeshTxBuilder, BlockfrostProvider, BrowserWallet, applyParamsToScript, mConStr1 } from '@meshsdk/core'
 import type { UTxO } from '@meshsdk/core'
 import type { BallotChoices, BallotMetadata } from '../lib/metadataSchema'
 import { bech32 } from 'bech32'
@@ -12,6 +12,19 @@ import { assembleTransaction } from './useContract'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const BLOCKFROST_KEY = (import.meta as any).env?.VITE_BLOCKFROST_KEY as string ?? ''
+
+const COMPILED_SCRIPT = '5901b5010100229800aba2aba1aab9faab9eaab9dab9a9bae002488888896600264653001300800198041804800cdc3a400130080024888966002600460126ea800e2646644b300130050018acc004c034dd5003c00a2c80722b30013370e9001000c566002601a6ea801e00516403916402c80584c8cc8966002600c601a6ea80222b3001323300100137586022602460246024602400844b30010018a508acc004cdc79bae301200100d8a518998010011809800a01c404513300100225980099b8f375c601c0029110c564f54455f323032355f504800899b8848000dd69807800c528201a8a50403113300100225980099b8f375c601c00291010c564f54455f323032355f504800899b88375a601e00290004528201a40306464660020026eacc04000c8966002003003899192cc004cdc8803800c56600266e3c01c00626eacc04400a00a807a26600800860280068078dd718078009808800a02014bd6f7b630111919800800801912cc00400629462b3001300330120018998010011809800c528201c4044601c601c601c601c60166ea8008c028dd50029bae300c300a3754007164020300800130043754011149a26cac80101'
+// Replace with the actual Admin PKH logged by mintVoteTokens.ts
+const ADMIN_PKH = 'REPLACE_WITH_ADMIN_PKH'
+
+// Lazy-initialize to avoid crash at module load when ADMIN_PKH is a placeholder
+let _parameterizedScript: string | null = null
+function getParameterizedScript(): string {
+  if (!_parameterizedScript) {
+    _parameterizedScript = applyParamsToScript(COMPILED_SCRIPT, [ADMIN_PKH], 'JSON')
+  }
+  return _parameterizedScript
+}
 
 const VOTE_POLICY_ID      = '4e1cdbfe3e52395946921cf56878719cdfe211dde196a337df118864'
 const VOTE_TOKEN_NAME_HEX = '564f54455f323032355f5048' // hex of "VOTE_2025_PH"
@@ -275,9 +288,9 @@ export function useVoting(): UseVotingReturn {
        if (!debugSkip) {
         txBuilder
           .mint('-1', VOTE_POLICY_ID, VOTE_TOKEN_NAME_HEX)
-          .mintingScript('')          // TODO: replace with parameterizedScript when real tokens are ready
+          .mintingScript(getParameterizedScript())
           .mintPlutusScriptV3()
-          .mintRedeemerValue({ alternative: 1, fields: [] })
+          .mintRedeemerValue(mConStr1([]))
       } else {
         console.warn('[DEBUG] Burn step skipped — VITE_DEBUG_SKIP_TOKEN_CHECK=true')
       }
