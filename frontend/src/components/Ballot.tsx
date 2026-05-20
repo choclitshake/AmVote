@@ -23,17 +23,25 @@ interface BallotProps {
 }
 
 export function Ballot({ positions, onSubmit, disabled }: BallotProps) {
-  const [selections, setSelections] = useState<Record<string, string[]>>({});
+  const [selections, setSelections] = useState<Record<string, string[]>>(() => {
+    const saved = localStorage.getItem('AMVOTE_CURRENT_SELECTIONS');
+    return saved ? JSON.parse(saved) : {};
+  });
   const [showReview, setShowReview] = useState(false);
 
   const handleSelect = (positionId: string, candidateId: string, maxChoices: number) => {
     setSelections(prev => {
       const current = prev[positionId] || [];
+      let updated;
       if (current.includes(candidateId)) {
-        return { ...prev, [positionId]: current.filter(id => id !== candidateId) };
+        updated = { ...prev, [positionId]: current.filter(id => id !== candidateId) };
+      } else if (current.length >= maxChoices) {
+        return prev;
+      } else {
+        updated = { ...prev, [positionId]: [...current, candidateId] };
       }
-      if (current.length >= maxChoices) return prev;
-      return { ...prev, [positionId]: [...current, candidateId] };
+      localStorage.setItem('AMVOTE_CURRENT_SELECTIONS', JSON.stringify(updated));
+      return updated;
     });
   };
 
@@ -98,7 +106,11 @@ export function Ballot({ positions, onSubmit, disabled }: BallotProps) {
         <BallotReviewModal
           positions={positions}
           selections={selections}
-          onConfirm={() => { setShowReview(false); onSubmit(selections); }}
+          onConfirm={() => {
+            setShowReview(false);
+            localStorage.removeItem('AMVOTE_CURRENT_SELECTIONS');
+            onSubmit(selections);
+          }}
           onClose={() => setShowReview(false)}
         />
       )}

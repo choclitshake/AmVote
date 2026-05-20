@@ -40,17 +40,17 @@ export function VerifyPage() {
       // Try to get metadata
       let metadata: Record<string, unknown> | null = null;
       try {
-        const raw = await (provider as any).fetchTxMetadata(trimmed);
+        const raw = await provider.get(`txs/${trimmed}/metadata`);
         if (raw && Array.isArray(raw)) {
           metadata = {};
           raw.forEach((entry: { label: string; json_metadata: unknown }) => {
-            if (entry.label && entry.json_metadata) {
+            if (entry.label && entry.json_metadata !== undefined) {
               (metadata as Record<string, unknown>)[entry.label] = entry.json_metadata;
             }
           });
         }
-      } catch {
-        // metadata fetch may fail, that's ok
+      } catch (e) {
+        console.error('Metadata fetch failed:', e);
       }
 
       setResult({
