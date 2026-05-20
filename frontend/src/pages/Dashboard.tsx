@@ -54,12 +54,16 @@ function formatDate(iso: string): string {
 export function Dashboard() {
   const { submitBallot, status, txHash, error, errorCode, isLoading } = useVoting();
   const { isConnected, hasVoteToken, networkId } = useWallet();
-  const [lastSelections, setLastSelections] = useState<Record<string, string[]> | null>(null);
+  const [lastSelections, setLastSelections] = useState<Record<string, string[]> | null>(() => {
+    const saved = localStorage.getItem('AMVOTE_LAST_SELECTIONS');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   const isConfirmed = status === 'confirmed' && !!txHash;
 
   const handleSubmit = async (selections: Record<string, string[]>) => {
     setLastSelections(selections);
+    localStorage.setItem('AMVOTE_LAST_SELECTIONS', JSON.stringify(selections));
     await submitBallot(selections, 'AMVOTE_2025_PH');
   };
 

@@ -146,8 +146,12 @@ function hexAddressToBech32(hexAddr: string): string {
 export function useVoting(): UseVotingReturn {
   const { wallet, connected } = useWallet()
 
-  const [status, setStatus]       = useState<VotingStatus>('idle')
-  const [txHash, setTxHash]       = useState<string | null>(null)
+  const [status, setStatus]       = useState<VotingStatus>(() => {
+    return (localStorage.getItem('AMVOTE_VOTING_STATUS') as VotingStatus) || 'idle'
+  })
+  const [txHash, setTxHash]       = useState<string | null>(() => {
+    return localStorage.getItem('AMVOTE_TX_HASH')
+  })
   const [error, setError]         = useState<string | null>(null)
   const [errorCode, setErrorCode] = useState<VotingErrorCode | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -371,6 +375,8 @@ export function useVoting(): UseVotingReturn {
 
       setTxHash(submittedHash)
       setStatus('confirmed')
+      localStorage.setItem('AMVOTE_TX_HASH', submittedHash)
+      localStorage.setItem('AMVOTE_VOTING_STATUS', 'confirmed')
       setError(null)
       setErrorCode(null)
       return submittedHash
