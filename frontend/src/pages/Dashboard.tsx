@@ -7,45 +7,9 @@ import { VoteButton } from '../components/VoteButton';
 import { useVoting } from '../hooks/useVoting';
 import { useWallet } from '../hooks/useWallet';
 import { useVoterStatus } from '../hooks/useVoterStatus';
-import { electionData, electionSettings } from '../data/electionData';
-
-// ── Build positions array from electionData ───────────────────────────────────
-const positions = [
-  {
-    id: electionData.president.id,
-    title: electionData.president.name,
-    maxChoices: electionData.president.maxSelections,
-    candidates: electionData.president.candidates.map(c => ({
-      id: c.id, name: c.name, party: c.party, region: c.region,
-    })),
-  },
-  {
-    id: electionData.vice_president.id,
-    title: electionData.vice_president.name,
-    maxChoices: electionData.vice_president.maxSelections,
-    candidates: electionData.vice_president.candidates.map(c => ({
-      id: c.id, name: c.name, party: c.party, region: c.region,
-    })),
-  },
-  {
-    id: electionData.senators.id,
-    title: electionData.senators.name,
-    maxChoices: electionData.senators.maxSelections,
-    candidates: electionData.senators.candidates.map(c => ({
-      id: c.id, name: c.name, party: c.party, region: c.region,
-    })),
-  },
-];
-
-// ── Lookup maps for receipt display ───────────────────────────────────────────
-const positionLabels: Record<string, string> = {};
-const candidateNames: Record<string, string> = {};
-positions.forEach(p => {
-  positionLabels[p.id] = p.title;
-  p.candidates.forEach(c => {
-    candidateNames[c.id] = c.name;
-  });
-});
+import { useElection, formatCountdown } from '../hooks/useElection';
+import { useElectionConfig } from '../hooks/useElectionConfig';
+import { electionSettings } from '../data/electionData';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -57,6 +21,14 @@ export function Dashboard() {
   const { submitBallot, status, txHash, error, errorCode, isLoading } = useVoting();
   const { isConnected, networkId } = useWallet();
   const { voterStatus, isLoading: statusLoading, refresh: refreshStatus } = useVoterStatus();
+  const { status: electionStatus, startTime, endTime, msUntilStart, msUntilEnd } = useElection();
+  const { positions: configPositions, positionLabels, candidateNames } = useElectionConfig();
+  const positions = configPositions.map(p => ({
+    id: p.id,
+    title: p.name,
+    maxChoices: p.maxSelections,
+    candidates: p.candidates,
+  }));
   const [lastSelections, setLastSelections] = useState<Record<string, string[]> | null>(() => {
     const saved = localStorage.getItem('AMVOTE_LAST_SELECTIONS');
     return saved ? JSON.parse(saved) : null;
@@ -66,6 +38,19 @@ export function Dashboard() {
   const registered = voterStatus?.registered ?? false;
   const hasVoted = voterStatus?.hasVoted ?? false;
   const checkingStatus = isConnected && statusLoading && !voterStatus;
+
+  // Election status badge + schedule labels (DB schedule overrides the static defaults)
+  const electionBadge =
+    electionStatus === 'Active'
+      ? { label: 'Active', cls: 'bg-green-500/15 text-green-500 border-green-500/30', dot: 'bg-green-500 animate-pulse' }
+      : electionStatus === 'NotStarted'
+        ? { label: 'Not started', cls: 'bg-yellow-400/15 text-yellow-300 border-yellow-400/30', dot: 'bg-yellow-400' }
+        : electionStatus === 'Closed'
+          ? { label: 'Closed', cls: 'bg-red-500/15 text-red-400 border-red-500/30', dot: 'bg-red-500' }
+          : { label: '…', cls: 'bg-bg-elevated text-text-muted border-bg-border', dot: 'bg-text-muted' };
+  const endDate = endTime ? new Date(endTime) : new Date(electionSettings.deadlineEnd);
+  const startLabel = startTime ? formatDate(new Date(startTime).toISOString()) : formatDate(electionSettings.deadlineStart);
+  const endLabel = endTime ? formatDate(new Date(endTime).toISOString()) : formatDate(electionSettings.deadlineEnd);
 
   // After a vote confirms, the backend has flipped the voter to 'voted' — refresh status.
   useEffect(() => {
@@ -94,13 +79,24 @@ export function Dashboard() {
                 {electionSettings.description}
               </p>
               <p className="text-xs text-text-muted font-body mt-2">
-                {formatDate(electionSettings.deadlineStart)} — {formatDate(electionSettings.deadlineEnd)}
+                {startLabel} — {endLabel}
               </p>
+              {electionStatus === 'NotStarted' && msUntilStart !== null && (
+                <p className="text-xs font-mono text-yellow-300 mt-2">⏳ Voting opens in {formatCountdown(msUntilStart)}</p>
+              )}
+              {electionStatus === 'Active' && msUntilEnd !== null && (
+                <p className="text-xs font-mono text-green-400 mt-2">Voting closes in {formatCountdown(msUntilEnd)}</p>
+              )}
+              {electionStatus === 'Closed' && (
+                <p className="text-xs font-mono text-red-400 mt-2">
+                  Voting has ended · <Link to="/results" className="underline underline-offset-2">view results</Link>
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-body font-medium bg-green-500/15 text-green-500 border border-green-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                Active
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-body font-medium border ${electionBadge.cls}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${electionBadge.dot}`} />
+                {electionBadge.label}
               </span>
               <span className="px-2.5 py-1 rounded-full text-xs font-mono bg-violet-500/15 text-violet-300 border border-violet-500/30">
                 Cardano Preview
@@ -163,7 +159,7 @@ export function Dashboard() {
             label={voterStatus?.voterId ? `Voter ID: ${voterStatus.voterId}` : 'registration status'}
           />
           <VoteCard title="Positions" value={positions.length} label="offices to vote for" />
-          <VoteCard title="Deadline" value={new Date(electionSettings.deadlineEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} label={new Date(electionSettings.deadlineEnd).getFullYear().toString()} />
+          <VoteCard title="Deadline" value={endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} label={endDate.getFullYear().toString()} />
         </div>
 
         {/* ── Error Banner ─────────────────────────────────────── */}
@@ -190,7 +186,7 @@ export function Dashboard() {
             <Ballot
               positions={positions}
               onSubmit={handleSubmit}
-              disabled={isLoading || !isConnected || !registered || hasVoted}
+              disabled={isLoading || !isConnected || !registered || hasVoted || electionStatus !== 'Active'}
             />
           </>
         )}

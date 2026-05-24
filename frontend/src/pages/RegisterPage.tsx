@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
+import { useElection, formatCountdown } from '../hooks/useElection';
 import { Header } from '../components/Header';
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const { isConnected, address } = useWallet();
+  const { status: electionStatus, msUntilStart } = useElection();
   const [voterId, setVoterId] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -71,15 +73,40 @@ export function RegisterPage() {
               </div>
               <h2 className="text-2xl font-bold font-heading text-text-primary m-0">Registered!</h2>
               <p className="text-sm text-text-secondary font-body">
-                <span className="font-mono text-green-400">{registeredId}</span> is now linked to your wallet. You can cast your ballot.
+                <span className="font-mono text-green-400">{registeredId}</span> is now linked to your wallet.
               </p>
 
-              <button
-                onClick={() => navigate('/')}
-                className="w-full py-3 px-4 rounded-lg font-medium text-white bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 transition-all"
-              >
-                Go to Ballot →
-              </button>
+              {electionStatus === 'NotStarted' && msUntilStart !== null && (
+                <div className="w-full rounded-lg border border-yellow-400/30 bg-yellow-400/5 px-4 py-3 text-sm text-yellow-300 font-body">
+                  ⏳ Voting opens in <span className="font-mono">{formatCountdown(msUntilStart)}</span>
+                </div>
+              )}
+              {electionStatus === 'Active' && (
+                <div className="w-full rounded-lg border border-green-500/30 bg-green-500/5 px-4 py-3 text-sm text-green-400 font-body">
+                  🗳️ Voting is open — cast your ballot now.
+                </div>
+              )}
+              {electionStatus === 'Closed' && (
+                <div className="w-full rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-400 font-body">
+                  Voting has ended.
+                </div>
+              )}
+
+              {electionStatus === 'Closed' ? (
+                <button
+                  onClick={() => navigate('/results')}
+                  className="w-full py-3 px-4 rounded-lg font-medium text-white bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 transition-all"
+                >
+                  View Results →
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/')}
+                  className="w-full py-3 px-4 rounded-lg font-medium text-white bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-500 hover:to-violet-400 transition-all"
+                >
+                  {electionStatus === 'NotStarted' ? 'Go to Dashboard →' : 'Go to Ballot →'}
+                </button>
+              )}
               <button
                 onClick={handleRegisterAnother}
                 className="w-full py-2.5 px-4 rounded-lg font-medium text-violet-300 border border-bg-border hover:border-violet-500/50 hover:bg-violet-500/10 transition-all"

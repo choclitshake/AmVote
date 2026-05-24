@@ -27,7 +27,7 @@ export interface ElectionSettings {
 // Election Settings
 
 export const electionSettings: ElectionSettings = {
-  title: 'AmVote 2025 General Election',
+  title: `AmVote ${new Date().getFullYear()} General Election`,
   description: 'A transparent, tamper-proof election powered by the Cardano blockchain.',
   network: 'preview',
   explorerBaseUrl: 'https://preview.cardanoscan.io/transaction',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from '../components/Header';
-import { electionData, electionSettings } from '../data/electionData';
+import { electionSettings } from '../data/electionData';
+import { useElectionConfig } from '../hooks/useElectionConfig';
 
 const BACKEND_URL = 'http://localhost:3001';
 const ELECTION_ID = 'AMVOTE_2025_PH';
@@ -12,10 +13,8 @@ interface ResultsResponse {
   lastUpdated: number;
 }
 
-// Positions in display order (same source as the ballot)
-const positions = [electionData.president, electionData.vice_president, electionData.senators];
-
 export function ResultsPage() {
+  const { positions } = useElectionConfig();
   const [data, setData] = useState<ResultsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

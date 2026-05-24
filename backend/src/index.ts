@@ -28,6 +28,24 @@ function requireAdmin(req: express.Request, res: express.Response, next: express
   next();
 }
 
+type ElectionSettings = { start_time: number | null; end_time: number | null; override: string | null };
+type ElectionStatus = 'NotStarted' | 'Active' | 'Closed';
+
+// Derive election status from the schedule + manual override.
+function computeStatus(s: ElectionSettings, now: number): ElectionStatus {
+  if (s.override === 'closed') return 'Closed';
+  if (s.override === 'open') return 'Active';
+  if (s.start_time && now < s.start_time) return 'NotStarted';
+  if (s.end_time && now > s.end_time) return 'Closed';
+  return 'Active';
+}
+
+async function getElectionSettings(): Promise<ElectionSettings> {
+  const db = getDb();
+  const s = await db.get('SELECT start_time, end_time, override FROM election_settings WHERE id = 1');
+  return s || { start_time: null, end_time: null, override: null };
+}
+
 app.post('/api/register', async (req, res) => {
   const { voterId, publicAddress } = req.body;
   if (!voterId || !publicAddress) return res.status(400).json({ error: 'voterId and publicAddress required' });
@@ -90,6 +108,45 @@ app.get('/api/admin/voters', requireAdmin, async (_req, res) => {
   });
 });
 
+// ── Election schedule / status ────────────────────────────────────────────
+// Public: anyone can read the current status (drives the voter UI countdown).
+app.get('/api/election', async (_req, res) => {
+  const s = await getElectionSettings();
+  const now = Date.now();
+  res.json({
+    status: computeStatus(s, now),
+    startTime: s.start_time,
+    endTime: s.end_time,
+    override: s.override,
+    now,
+  });
+});
+
+// Admin: set schedule and/or manual override.
+// Body: { startTime?: number|null, endTime?: number|null, override?: 'open'|'closed'|'auto'|null }
+app.put('/api/election', requireAdmin, async (req, res) => {
+  const { startTime, endTime, override } = req.body;
+  const ov = override === 'open' || override === 'closed' ? override : null;
+  const start = startTime === null || startTime === undefined ? null : Number(startTime);
+  const end = endTime === null || endTime === undefined ? null : Number(endTime);
+
+  const db = getDb();
+  await db.run(
+    'UPDATE election_settings SET start_time = ?, end_time = ?, override = ? WHERE id = 1',
+    [start, end, ov]
+  );
+
+  const s = await getElectionSettings();
+  const now = Date.now();
+  res.json({
+    status: computeStatus(s, now),
+    startTime: s.start_time,
+    endTime: s.end_time,
+    override: s.override,
+    now,
+  });
+});
+
 app.post('/api/build-vote-tx', async (req, res) => {
   const { publicAddress, changeAddress, ballot, electionId } = req.body;
   console.log('build-vote-tx received publicAddress:', publicAddress);
@@ -99,6 +156,11 @@ app.post('/api/build-vote-tx', async (req, res) => {
 
   const db = getDb();
   try {
+    // Election must be open
+    if (computeStatus(await getElectionSettings(), Date.now()) !== 'Active') {
+      return res.status(403).json({ error: 'Voting is not currently open.' });
+    }
+
     const voter = await db.get('SELECT * FROM voters WHERE public_address = ?', [publicAddress]);
     if (!voter) return res.status(404).json({ error: 'Wallet not registered' });
     if (voter.status === 'voted') return res.status(403).json({ error: 'Voter already cast a ballot' });
@@ -202,6 +264,69 @@ app.get('/api/results/:electionId', async (req, res) => {
     console.error('[results]', error);
     res.status(500).json({ error: error.message || 'Failed to compute results' });
   }
+});
+
+// ── Ballot configuration (positions + candidates) ─────────────────────────
+const rid = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
+
+// Public: the ballot config consumed by the voter UI and results page.
+app.get('/api/config', async (_req, res) => {
+  const db = getDb();
+  const positions = await db.all('SELECT id, name, max_selections FROM positions ORDER BY sort_order, name');
+  const candidates = await db.all('SELECT id, position_id, name, party, region FROM candidates ORDER BY sort_order, name');
+  res.json({
+    positions: positions.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      maxSelections: p.max_selections,
+      candidates: candidates
+        .filter((c: any) => c.position_id === p.id)
+        .map((c: any) => ({ id: c.id, name: c.name, party: c.party, region: c.region })),
+    })),
+  });
+});
+
+app.post('/api/admin/positions', requireAdmin, async (req, res) => {
+  const { name, maxSelections } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'name required' });
+  const db = getDb();
+  const order = await db.get('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM positions');
+  const id = rid('pos');
+  await db.run(
+    'INSERT INTO positions (id, name, max_selections, sort_order) VALUES (?, ?, ?, ?)',
+    [id, name.trim(), Number(maxSelections) > 0 ? Number(maxSelections) : 1, order.next]
+  );
+  res.json({ id });
+});
+
+app.delete('/api/admin/positions/:id', requireAdmin, async (req, res) => {
+  const db = getDb();
+  await db.run('DELETE FROM candidates WHERE position_id = ?', [req.params.id]);
+  await db.run('DELETE FROM positions WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+
+app.post('/api/admin/candidates', requireAdmin, async (req, res) => {
+  const { positionId, name, party, region } = req.body;
+  if (!positionId || !name || !name.trim()) {
+    return res.status(400).json({ error: 'positionId and name required' });
+  }
+  const db = getDb();
+  const pos = await db.get('SELECT id FROM positions WHERE id = ?', [positionId]);
+  if (!pos) return res.status(404).json({ error: 'Position not found' });
+  const order = await db.get('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM candidates WHERE position_id = ?', [positionId]);
+  const id = rid('cand');
+  await db.run(
+    'INSERT INTO candidates (id, position_id, name, party, region, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+    [id, positionId, name.trim(), (party || '').trim(), (region || '').trim(), order.next]
+  );
+  res.json({ id });
+});
+
+app.delete('/api/admin/candidates/:id', requireAdmin, async (req, res) => {
+  const db = getDb();
+  await db.run('DELETE FROM candidates WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
 });
 
 initDb().then(() => {
