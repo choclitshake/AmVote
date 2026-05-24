@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useWallet as useMeshWallet } from '@meshsdk/react'
 
-import { getVoteAssetUnit } from './useVoting'
-
 export interface WalletAsset {
   unit: string
   quantity: string
@@ -53,20 +51,13 @@ export function useWallet(): UseWalletReturn {
         const balance: WalletAsset[] = await meshWallet.wallet.getBalanceMesh()
         setAssets(balance)
 
-        // 4. Check if wallet holds the VOTE_2025_PH token
-        const hasToken = balance.some(
-          (asset) =>
-            asset.unit === getVoteAssetUnit() &&
-            parseInt(asset.quantity) > 0
-        )
-        // DEBUG: force hasVoteToken=true when skip flag is set
-        const debugSkip = (import.meta as any).env?.VITE_DEBUG_SKIP_TOKEN_CHECK === 'true'
-        setHasVoteToken(hasToken || debugSkip)
+        // 4. In the Gatekeeper architecture, voters do not hold the token permanently.
+        // Real eligibility is enforced by the backend SQLite database upon submission!
+        setHasVoteToken(true)
 
         console.log('Address:', addr)
         console.log('Network ID:', netId)
         console.log('Balance:', balance)
-        console.log('Has Vote Token:', hasToken)
 
       } catch (err) {
         console.error('[useWallet] Error fetching wallet data:', err)
