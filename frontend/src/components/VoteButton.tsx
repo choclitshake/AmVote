@@ -19,9 +19,10 @@ interface VoteButtonProps {
   isLoading?: boolean;
   onVoteSuccess?: (txHash: string) => void;
   onVoteError?: (error: string) => void;
+  onBurnToken?: () => void;
 }
 
-export function VoteButton({ receipt, status = 'idle', error, errorCode, isLoading = false }: VoteButtonProps) {
+export function VoteButton({ receipt, status = 'idle', error, errorCode, isLoading = false, onBurnToken }: VoteButtonProps) {
   const { connected } = useWallet();
   const [copied, setCopied] = useState(false);
 
@@ -90,13 +91,49 @@ export function VoteButton({ receipt, status = 'idle', error, errorCode, isLoadi
           href={`${electionSettings.explorerBaseUrl}/${txHash}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-body font-semibold text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-body font-semibold text-violet-400 hover:text-violet-300 underline underline-offset-2 transition-colors mb-4"
         >
           View on CardanoScan
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
         </a>
+
+        {/* ── Status & Error overlays for the burn phase ── */}
+        <div className="space-y-3 mt-4">
+          {error && (
+            <div className={`border rounded-xl p-4 ${errorCode === 'USER_CANCELLED' ? 'bg-yellow-500/5 border-yellow-500/30' : 'bg-red-500/5 border-red-500/30'}`}>
+              <p className={`font-body font-semibold text-sm ${errorCode === 'USER_CANCELLED' ? 'text-yellow-400' : 'text-red-400'}`}>
+                {errorCode === 'USER_CANCELLED' ? '⚠️' : '❌'} {error}
+              </p>
+            </div>
+          )}
+          
+          {status.includes('burn-') && status !== 'burn-confirmed' && (
+            <div className="flex items-center gap-3 p-4 bg-bg-elevated border border-orange-500/30 rounded-xl">
+              <span className="inline-block w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm font-body text-orange-400">
+                {status === 'burn-pending' && 'Preparing burn transaction...'}
+                {status === 'burn-signing' && 'Waiting for wallet signature...'}
+                {status === 'burn-submitting' && 'Submitting burn to blockchain...'}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Burn Button */}
+        {status !== 'burn-confirmed' && onBurnToken && (
+          <button
+            onClick={onBurnToken}
+            disabled={isLoading || status.includes('burn-')}
+            className="w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-heading font-semibold rounded-xl transition-colors disabled:opacity-50 mt-4 shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+          >
+            {(isLoading || status.includes('burn-')) ? (
+              <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : '🔥'}
+            {(isLoading || status.includes('burn-')) ? 'Processing...' : 'Finalize Vote (Burn Token)'}
+          </button>
+        )}
       </div>
     );
   }
@@ -107,7 +144,11 @@ export function VoteButton({ receipt, status = 'idle', error, errorCode, isLoadi
     building:   { label: '🔨 Building transaction...', color: 'text-violet-400' },
     signing:    { label: '✍️ Waiting for wallet signature...', color: 'text-yellow-400' },
     submitting: { label: '📡 Submitting to blockchain...', color: 'text-violet-300' },
-    confirmed:  { label: '✅ Transaction confirmed!', color: 'text-green-500' },
+    confirmed:  { label: '✅ Transaction confirmed! Waiting for token...', color: 'text-green-500' },
+    'burn-pending': { label: '🔥 Preparing to burn token...', color: 'text-orange-400' },
+    'burn-signing': { label: '✍️ Waiting for signature to burn...', color: 'text-yellow-400' },
+    'burn-submitting': { label: '📡 Submitting burn transaction...', color: 'text-violet-300' },
+    'burn-confirmed': { label: '✅ Vote fully finalized (Token burned)', color: 'text-green-500' },
   };
 
   const hints: Partial<Record<VotingErrorCode, string>> = {

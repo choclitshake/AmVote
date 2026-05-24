@@ -52,11 +52,52 @@ app.post('/api/build-vote-tx', async (req, res) => {
     const voter = await db.get('SELECT * FROM voters WHERE public_address = ?', [publicAddress]);
     if (!voter) return res.status(404).json({ error: 'Wallet not registered' });
     if (voter.status === 'voted') return res.status(403).json({ error: 'Voter already cast a ballot' });
+    if (voter.status === 'burned') return res.status(403).json({ error: 'Token already burned' });
 
     // Use changeAddress for transaction output, fallback to publicAddress if old frontend
     const targetAddress = toBech32(changeAddress || voter.public_address);
     const partiallySignedTx = await buildMintAndBurnTx(targetAddress, ballot, electionId);
     await db.run('UPDATE voters SET status = ? WHERE public_address = ?', ['voted', publicAddress]);
+
+    res.json({ unsignedTx: partiallySignedTx });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/tx-status/:hash', async (req, res) => {
+  try {
+    const { provider } = require('./mesh');
+    const txInfo = await provider.fetchTxInfo(req.params.hash);
+    if (txInfo) {
+      return res.json({ confirmed: true });
+    }
+  } catch (err: any) {
+    if (err.status === 404) {
+      return res.json({ confirmed: false });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/build-burn-tx', async (req, res) => {
+  const { publicAddress, voterChangeAddress } = req.body;
+  if (!publicAddress || !voterChangeAddress) {
+    return res.status(400).json({ error: 'publicAddress and voterChangeAddress required' });
+  }
+
+  const db = getDb();
+  try {
+    const voter = await db.get('SELECT * FROM voters WHERE public_address = ?', [publicAddress]);
+    if (!voter) return res.status(404).json({ error: 'Wallet not registered' });
+    if (voter.status !== 'voted') return res.status(403).json({ error: 'No vote to burn' });
+
+    const { buildBurnTx } = require('./mesh');
+    const partiallySignedTx = await buildBurnTx(voterChangeAddress);
+    
+    // Update status to burned
+    await db.run('UPDATE voters SET status = ? WHERE public_address = ?', ['burned', publicAddress]);
 
     res.json({ unsignedTx: partiallySignedTx });
   } catch (error: any) {
