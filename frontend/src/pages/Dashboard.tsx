@@ -52,19 +52,25 @@ function formatDate(iso: string): string {
 }
 
 export function Dashboard() {
-  const { submitBallot, status, txHash, error, errorCode, isLoading } = useVoting();
+  const { submitBallot, burnBallotToken, status, txHash, error, errorCode, isLoading } = useVoting();
   const { isConnected, hasVoteToken, networkId } = useWallet();
   const [lastSelections, setLastSelections] = useState<Record<string, string[]> | null>(() => {
     const saved = localStorage.getItem('AMVOTE_LAST_SELECTIONS');
     return saved ? JSON.parse(saved) : null;
   });
 
-  const isConfirmed = status === 'confirmed' && !!txHash;
+  // Show modal only while vote is confirmed but not yet burned
+  const isVotePhaseDone = (status === 'confirmed' || (status.includes('burn-') && status !== 'burn-confirmed')) && !!txHash;
+  const isBurnConfirmed = status === 'burn-confirmed';
 
   const handleSubmit = async (selections: Record<string, string[]>) => {
     setLastSelections(selections);
     localStorage.setItem('AMVOTE_LAST_SELECTIONS', JSON.stringify(selections));
     await submitBallot(selections, 'AMVOTE_2025_PH');
+  };
+
+  const handleBurn = async () => {
+    await burnBallotToken();
   };
 
   return (
@@ -136,35 +142,66 @@ export function Dashboard() {
           <VoteCard title="Deadline" value={new Date(electionSettings.deadlineEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} label={new Date(electionSettings.deadlineEnd).getFullYear().toString()} />
         </div>
 
-        {/* ── Error Banner ─────────────────────────────────────── */}
-        {error && !isConfirmed && (
+        {/* ── Error Banner (Only show when not in modal) ── */}
+        {error && !isVotePhaseDone && !isBurnConfirmed && (
           <VoteButton status={status} error={error} errorCode={errorCode} isLoading={false} />
         )}
 
-        {/* ── Receipt OR Ballot ────────────────────────────────── */}
-        {isConfirmed && lastSelections ? (
-          <VoteButton
-            receipt={{
-              txHash: txHash!,
-              electionId: 'AMVOTE_2025_PH',
-              selections: lastSelections,
-              positionLabels,
-              candidateNames,
-            }}
-          />
-        ) : (
-          <>
-            {(isLoading && !error) && (
-              <VoteButton status={status} isLoading={isLoading} />
-            )}
-            <Ballot
-              positions={positions}
-              onSubmit={handleSubmit}
-              disabled={isLoading || !isConnected || !hasVoteToken}
-            />
-          </>
+        {/* ── Burn Confirmed Success Banner ─────────────────────── */}
+        {isBurnConfirmed && txHash && (
+          <div className="bg-green-500/10 border border-green-500/40 rounded-2xl p-6 space-y-4 shadow-[0_0_30px_rgba(34,197,94,0.08)]">
+            <div className="flex items-start gap-4">
+              <span className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-xl shrink-0">🎉</span>
+              <div>
+                <p className="text-lg font-heading font-bold text-green-400">Vote Fully Finalized!</p>
+                <p className="text-sm font-body text-text-secondary mt-1">
+                  Your <span className="font-mono text-green-400">VOTE_2025_PH</span> token has been burned and your vote is permanently recorded on the Cardano blockchain. Thank you for participating!
+                </p>
+              </div>
+            </div>
+            <div className="bg-bg-elevated rounded-xl border border-bg-border p-3 flex items-center gap-2">
+              <p className="font-mono text-xs text-violet-300 break-all flex-1">{txHash}</p>
+              <a
+                href={`${electionSettings.explorerBaseUrl}/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/30 text-violet-300 hover:text-violet-200 text-xs font-body font-semibold transition-colors whitespace-nowrap"
+              >
+                View on CardanoScan ↗
+              </a>
+            </div>
+          </div>
         )}
+
+        {/* ── Ballot Form ──────────────────────────────────────── */}
+        <Ballot
+          positions={positions}
+          onSubmit={handleSubmit}
+          disabled={isLoading || !isConnected || !hasVoteToken || (networkId !== null && networkId !== 0) || isBurnConfirmed}
+        />
       </main>
+
+      {/* ── Mandatory Burn Modal Overlay ───────────────────────── */}
+      {isVotePhaseDone && lastSelections && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-base/80 backdrop-blur-sm">
+          <div className="w-full max-w-lg animate-in fade-in zoom-in duration-200">
+            <VoteButton
+              status={status}
+              error={error}
+              errorCode={errorCode}
+              isLoading={isLoading}
+              onBurnToken={status === 'confirmed' ? handleBurn : undefined}
+              receipt={{
+                txHash: txHash!,
+                electionId: 'AMVOTE_2025_PH',
+                selections: lastSelections,
+                positionLabels,
+                candidateNames,
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
