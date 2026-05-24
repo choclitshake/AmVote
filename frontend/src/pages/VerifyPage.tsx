@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BlockfrostProvider } from '@meshsdk/core';
 import { Header } from '../components/Header';
 import { electionSettings } from '../data/electionData';
+import { useElectionConfig } from '../hooks/useElectionConfig';
 
 const BLOCKFROST_KEY = (import.meta as any).env?.VITE_BLOCKFROST_KEY as string ?? '';
 
@@ -16,6 +17,7 @@ interface TxResult {
 }
 
 export function VerifyPage() {
+  const { positionLabels, candidateNames } = useElectionConfig();
   const [hash, setHash] = useState('');
   const [result, setResult] = useState<TxResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -158,9 +160,24 @@ export function VerifyPage() {
                     {(ballotData as any).ballot && (
                       <div>
                         <p className="text-xs text-text-muted font-body mb-1">Ballot Choices</p>
-                        <pre className="text-xs text-text-secondary font-mono bg-bg-elevated rounded-lg p-3 overflow-x-auto">
-                          {JSON.stringify((ballotData as any).ballot, null, 2)}
-                        </pre>
+                        <div className="bg-bg-elevated rounded-lg p-3 space-y-3">
+                          {Object.entries((ballotData as any).ballot).map(([posId, choices]) => {
+                            const posName = positionLabels[posId] || posId;
+                            const candArray = Array.isArray(choices) ? choices : [choices];
+                            const candNames = candArray.map((c: string) => candidateNames[c] || c);
+                            
+                            return (
+                              <div key={posId}>
+                                <p className="text-xs font-heading font-medium text-text-primary mb-1">{posName}</p>
+                                <ul className="list-disc list-inside text-xs font-mono text-violet-300">
+                                  {candNames.map((name: string, i: number) => (
+                                    <li key={i}>{name}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                     {(ballotData as any).timestamp && (

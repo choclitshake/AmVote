@@ -1,9 +1,11 @@
 import { NavLink } from 'react-router-dom';
 
 const links = [
-  { to: '/',       label: 'Home' },
-  { to: '/verify', label: 'Verify' },
-  { to: '/about',  label: 'About' },
+  { to: '/',         label: 'Home' },
+  { to: '/register', label: 'Register' },
+  { to: '/results',  label: 'Results' },
+  { to: '/verify',   label: 'Verify' },
+  { to: '/about',    label: 'About' },
 ];
 
 export function Navigation() {

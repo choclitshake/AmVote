@@ -60,7 +60,6 @@ export function useWallet(): UseWalletReturn {
         console.log('Address:', addr)
         console.log('Network ID:', netId)
         console.log('Balance:', balance)
-        console.log('Has Vote Token:', hasToken)
 
       } catch (err) {
         console.error('[useWallet] Error fetching wallet data:', err)

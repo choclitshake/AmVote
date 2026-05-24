@@ -52,7 +52,7 @@ export function Ballot({ positions, onSubmit, disabled }: BallotProps) {
   return (
     <div className="space-y-6">
       {/* Progress bar */}
-      <div className="sticky top-[105px] z-20 bg-bg-base/90 backdrop-blur-sm py-3">
+      <div className="sticky top-[112px] z-20 bg-bg-base border-b border-bg-border pt-6 pb-3 -mx-4 sm:-mx-6 px-4 sm:px-6">
         <div className="flex items-center justify-between mb-2">
           <p className="font-body text-xs text-text-secondary">Ballot Progress</p>
           <p className="font-body text-xs text-text-muted">{filledPositions} of {totalPositions} positions filled</p>
