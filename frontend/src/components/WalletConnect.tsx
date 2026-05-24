@@ -53,15 +53,6 @@ export function WalletConnect() {
               ⚠ Wrong Network
             </span>
           )}
-          {hasVoteToken ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-body font-medium bg-yellow-400/15 text-yellow-300 border border-yellow-400/30">
-              ✓ Eligible
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-body font-medium bg-red-500/15 text-red-400 border border-red-500/30">
-              ✗ No token
-            </span>
-          )}
         </div>
 
         {/* Address + wallet info */}
