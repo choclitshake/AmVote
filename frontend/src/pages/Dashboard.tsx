@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from '../components/Header';
 import { Ballot } from '../components/Ballot';
 import { VoteCard } from '../components/VoteCard';
 import { VoteButton } from '../components/VoteButton';
 import { useVoting } from '../hooks/useVoting';
 import { useWallet } from '../hooks/useWallet';
+import { useVoterStatus } from '../hooks/useVoterStatus';
 import { electionData, electionSettings } from '../data/electionData';
 
 // ── Build positions array from electionData ───────────────────────────────────
@@ -53,13 +55,22 @@ function formatDate(iso: string): string {
 
 export function Dashboard() {
   const { submitBallot, status, txHash, error, errorCode, isLoading } = useVoting();
-  const { isConnected, hasVoteToken, networkId } = useWallet();
+  const { isConnected, networkId } = useWallet();
+  const { voterStatus, isLoading: statusLoading, refresh: refreshStatus } = useVoterStatus();
   const [lastSelections, setLastSelections] = useState<Record<string, string[]> | null>(() => {
     const saved = localStorage.getItem('AMVOTE_LAST_SELECTIONS');
     return saved ? JSON.parse(saved) : null;
   });
 
   const isConfirmed = status === 'confirmed' && !!txHash;
+  const registered = voterStatus?.registered ?? false;
+  const hasVoted = voterStatus?.hasVoted ?? false;
+  const checkingStatus = isConnected && statusLoading && !voterStatus;
+
+  // After a vote confirms, the backend has flipped the voter to 'voted' — refresh status.
+  useEffect(() => {
+    if (isConfirmed) refreshStatus();
+  }, [isConfirmed, refreshStatus]);
 
   const handleSubmit = async (selections: Record<string, string[]>) => {
     setLastSelections(selections);
@@ -100,26 +111,41 @@ export function Dashboard() {
 
         {/* ── Eligibility Status Bar ───────────────────────────── */}
         <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 text-sm font-body ${
-          !isConnected
+          !isConnected || checkingStatus
             ? 'bg-bg-surface border-bg-border text-text-secondary'
-            : hasVoteToken
-              ? 'bg-yellow-400/5 border-yellow-400/30 text-yellow-300'
-              : 'bg-red-500/5 border-red-500/30 text-red-400'
+            : hasVoted
+              ? 'bg-green-500/5 border-green-500/30 text-green-400'
+              : registered
+                ? 'bg-yellow-400/5 border-yellow-400/30 text-yellow-300'
+                : 'bg-red-500/5 border-red-500/30 text-red-400'
         }`}>
           {!isConnected ? (
             <>
               <span className="text-base">🔗</span>
               Connect your wallet to vote
             </>
-          ) : hasVoteToken ? (
+          ) : checkingStatus ? (
+            <>
+              <span className="text-base">⏳</span>
+              Checking your registration…
+            </>
+          ) : hasVoted ? (
+            <>
+              <span className="text-base">✅</span>
+              You have already cast your vote
+            </>
+          ) : registered ? (
             <>
               <span className="text-base">🗳️</span>
-              Eligible to vote — 1 VOTE_2025_PH token detected
+              Registered and eligible to vote{voterStatus?.voterId ? ` — ${voterStatus.voterId}` : ''}
             </>
           ) : (
             <>
               <span className="text-base">🚫</span>
-              Not eligible — VOTE_2025_PH token not found in your wallet
+              Wallet not registered —{' '}
+              <Link to="/register" className="underline underline-offset-2 font-medium hover:text-red-300">
+                register to vote first
+              </Link>
             </>
           )}
           {isConnected && networkId !== null && networkId !== 0 && (
@@ -131,7 +157,11 @@ export function Dashboard() {
 
         {/* ── Stats Row ────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <VoteCard title="Token Status" value={hasVoteToken ? '1' : '0'} label="VOTE_2025_PH tokens" />
+          <VoteCard
+            title="Voter Status"
+            value={!isConnected ? '—' : hasVoted ? 'Voted' : registered ? 'Eligible' : 'Unregistered'}
+            label={voterStatus?.voterId ? `Voter ID: ${voterStatus.voterId}` : 'registration status'}
+          />
           <VoteCard title="Positions" value={positions.length} label="offices to vote for" />
           <VoteCard title="Deadline" value={new Date(electionSettings.deadlineEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} label={new Date(electionSettings.deadlineEnd).getFullYear().toString()} />
         </div>
@@ -160,7 +190,7 @@ export function Dashboard() {
             <Ballot
               positions={positions}
               onSubmit={handleSubmit}
-              disabled={isLoading || !isConnected || !hasVoteToken}
+              disabled={isLoading || !isConnected || !registered || hasVoted}
             />
           </>
         )}

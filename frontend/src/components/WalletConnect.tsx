@@ -16,7 +16,7 @@ function truncateAddress(addr: string): string {
 
 export function WalletConnect() {
   const { connect, disconnect, connected, name } = useMeshWallet();
-  const { address, hasVoteToken, networkId } = useWallet();
+  const { address, networkId } = useWallet();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 

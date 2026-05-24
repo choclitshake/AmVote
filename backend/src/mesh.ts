@@ -17,28 +17,35 @@ export const adminWallet = new MeshWallet({
   },
 });
 
+export const VOTE_TOKEN_NAME = 'VOTE_2025_PH';
+
 export async function getNativeScriptPolicy() {
   const adminAddress = await adminWallet.getChangeAddress();
   return ForgeScript.withOneSignature(adminAddress);
 }
 
-export async function buildMintAndBurnTx(voterAddress: string, ballotMetadata: any, electionId: string) {
-  const forgingScript = await getNativeScriptPolicy();
-  
-  // Resolve the policy ID from the forging script
-  // ForgeScript returns a hex CBOR string - we need to extract the key hash to build
-  // the NativeScript object that resolveNativeScriptHash expects.
+/**
+ * Resolves the minting policy ID and full asset unit (policyId + assetNameHex)
+ * for the VOTE token. Used both when building vote transactions and when
+ * tallying results from the chain.
+ */
+export async function getVoteTokenUnit() {
   const adminAddress = await adminWallet.getChangeAddress();
   const keyHash = resolvePaymentKeyHash(adminAddress);
   const nativeScriptObj: NativeScript = { type: 'sig', keyHash };
   const policyId = resolveNativeScriptHash(nativeScriptObj);
-  const assetNameHex = Buffer.from('VOTE_2025_PH').toString('hex');
-  const tokenUnit = policyId + assetNameHex;
+  const assetNameHex = Buffer.from(VOTE_TOKEN_NAME).toString('hex');
+  return { policyId, assetNameHex, unit: policyId + assetNameHex };
+}
+
+export async function buildMintAndBurnTx(voterAddress: string, ballotMetadata: any, electionId: string) {
+  const forgingScript = await getNativeScriptPolicy();
+  const { unit: tokenUnit } = await getVoteTokenUnit();
 
   const tx = new Transaction({ initiator: adminWallet });
 
   tx.mintAsset(forgingScript, {
-    assetName: 'VOTE_2025_PH',
+    assetName: VOTE_TOKEN_NAME,
     assetQuantity: '1'
   });
 
