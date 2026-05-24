@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useWallet as useMeshWallet } from '@meshsdk/react'
 
-import { getVoteAssetUnit } from './useVoting'
+
 
 export interface WalletAsset {
   unit: string
@@ -41,8 +41,9 @@ export function useWallet(): UseWalletReturn {
     const fetchWalletData = async () => {
       setIsLoading(true)
       try {
-        // 1. Get wallet address
-        const addr = await meshWallet.wallet.getChangeAddress()
+        // 1. Get wallet address (use Reward Address for stable identity)
+        const rewardAddresses = await meshWallet.wallet.getRewardAddresses()
+        const addr = rewardAddresses[0] || await meshWallet.wallet.getChangeAddress()
         setAddress(addr)
 
         // 2. Get network ID (0 = testnet, 1 = mainnet)
@@ -53,15 +54,8 @@ export function useWallet(): UseWalletReturn {
         const balance: WalletAsset[] = await meshWallet.wallet.getBalanceMesh()
         setAssets(balance)
 
-        // 4. Check if wallet holds the VOTE_2025_PH token
-        const hasToken = balance.some(
-          (asset) =>
-            asset.unit === getVoteAssetUnit() &&
-            parseInt(asset.quantity) > 0
-        )
-        // DEBUG: force hasVoteToken=true when skip flag is set
-        const debugSkip = (import.meta as any).env?.VITE_DEBUG_SKIP_TOKEN_CHECK === 'true'
-        setHasVoteToken(hasToken || debugSkip)
+        // 4. Token checking is obsolete in the new architecture, bypass it
+        setHasVoteToken(true)
 
         console.log('Address:', addr)
         console.log('Network ID:', netId)

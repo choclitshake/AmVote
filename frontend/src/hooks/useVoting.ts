@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useWallet } from '@meshsdk/react'
 import { BrowserWallet } from '@meshsdk/core'
 import type { BallotChoices } from '../lib/metadataSchema'
@@ -62,6 +62,16 @@ export function useVoting(): UseVotingReturn {
   const [errorCode, setErrorCode] = useState<VotingErrorCode | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  // Automatically clear stale voting sessions when wallet is disconnected
+  useEffect(() => {
+    if (!connected) {
+      setStatus('idle');
+      setTxHash(null);
+      localStorage.removeItem('AMVOTE_VOTING_STATUS');
+      localStorage.removeItem('AMVOTE_TX_HASH');
+    }
+  }, [connected]);
+
   const setVotingError = (votingError: VotingError) => {
     setError(votingError.message)
     setErrorCode(votingError.code)
@@ -85,11 +95,14 @@ export function useVoting(): UseVotingReturn {
       }
 
       setStatus('building')
-      const publicAddress = await wallet.getChangeAddress()
+      const rewardAddresses = await wallet.getRewardAddresses()
+      const identityAddress = rewardAddresses[0] || await wallet.getChangeAddress()
+      const changeAddress = await wallet.getChangeAddress()
+
       const response = await fetch(`${BACKEND_URL}/api/build-vote-tx`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicAddress, ballot, electionId })
+        body: JSON.stringify({ publicAddress: identityAddress, changeAddress, ballot, electionId })
       })
 
       if (!response.ok) {
