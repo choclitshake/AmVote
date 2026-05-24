@@ -18,26 +18,35 @@ export const adminWallet = new MeshWallet({
   },
 });
 
+export const VOTE_TOKEN_NAME = 'VOTE_2025_PH';
+
 export async function getNativeScriptPolicy() {
   const adminAddress = await adminWallet.getChangeAddress();
   return ForgeScript.withOneSignature(adminAddress);
 }
 
-export async function buildMintAndBurnTx(voterAddress: string, ballotMetadata: any, electionId: string) {
-  const forgingScript = await getNativeScriptPolicy();
-  
-  // Resolve the policy ID from the forging script
+/**
+ * Resolves the minting policy ID and full asset unit (policyId + assetNameHex)
+ * for the VOTE token. Used both when building vote transactions and when
+ * tallying results from the chain.
+ */
+export async function getVoteTokenUnit() {
   const adminAddress = await adminWallet.getChangeAddress();
   const keyHash = resolvePaymentKeyHash(adminAddress);
   const nativeScriptObj: NativeScript = { type: 'sig', keyHash };
   const policyId = resolveNativeScriptHash(nativeScriptObj);
-  const assetNameHex = Buffer.from('VOTE_2025_PH').toString('hex');
-  const tokenUnit = policyId + assetNameHex;
+  const assetNameHex = Buffer.from(VOTE_TOKEN_NAME).toString('hex');
+  return { policyId, assetNameHex, unit: policyId + assetNameHex };
+}
+
+export async function buildMintAndBurnTx(voterAddress: string, ballotMetadata: any, electionId: string) {
+  const forgingScript = await getNativeScriptPolicy();
+  const { unit: tokenUnit } = await getVoteTokenUnit();
 
   const tx = new Transaction({ initiator: adminWallet });
 
   tx.mintAsset(forgingScript, {
-    assetName: 'VOTE_2025_PH',
+    assetName: VOTE_TOKEN_NAME,
     assetQuantity: '1'
   });
 
@@ -56,12 +65,7 @@ export async function buildMintAndBurnTx(voterAddress: string, ballotMetadata: a
 export async function buildBurnTx(voterChangeAddress: string) {
   const forgingScript = await getNativeScriptPolicy();
   const adminAddress = await adminWallet.getChangeAddress();
-
-  const keyHash = resolvePaymentKeyHash(adminAddress);
-  const nativeScriptObj: NativeScript = { type: 'sig', keyHash };
-  const policyId = resolveNativeScriptHash(nativeScriptObj);
-  const assetNameHex = Buffer.from('VOTE_2025_PH').toString('hex');
-  const tokenUnit = policyId + assetNameHex;
+  const { unit: tokenUnit } = await getVoteTokenUnit();
 
   // Convert hex address to bech32 if needed — Blockfrost only accepts bech32
   const bech32Address = voterChangeAddress.startsWith('addr')
@@ -72,7 +76,7 @@ export async function buildBurnTx(voterChangeAddress: string) {
   // Find the UTXO at the voter's address that holds the token
   const voterUtxos = await provider.fetchAddressUTxOs(bech32Address, tokenUnit);
   if (!voterUtxos || voterUtxos.length === 0) {
-    throw new Error(`VOTE_2025_PH token not found at address ${bech32Address} on Blockfrost`);
+    throw new Error('Transaction not yet confirmed on the blockchain, please wait a few seconds and try again.');
   }
   const tokenUtxo = voterUtxos[0];
   console.log('[buildBurnTx] Found token UTXO:', JSON.stringify(tokenUtxo));
