@@ -24,9 +24,9 @@ function ExternalLinkIcon() {
 }
 
 const rankStyles = [
-  'bg-amber-gradient text-black shadow-amber-sm',
-  'bg-slate-600/50 text-slate-300 border border-slate-500/30',
-  'bg-amber-900/40 text-amber-600/80 border border-amber-800/30',
+  'bg-gradient-to-br from-yellow-300 via-amber-400 to-amber-500 text-neutral-950 font-extrabold shadow-[0_0_12px_rgba(245,158,11,0.4)] border border-yellow-300/30',
+  'bg-gradient-to-br from-slate-100 via-slate-300 to-slate-400 text-neutral-950 font-extrabold shadow-[0_0_12px_rgba(226,232,240,0.3)] border border-slate-200/30',
+  'bg-gradient-to-br from-orange-400 via-amber-700 to-amber-900 text-white font-extrabold shadow-[0_0_12px_rgba(180,83,9,0.3)] border border-orange-500/20',
 ];
 const rankLabel = ['1st', '2nd', '3rd'];
 
