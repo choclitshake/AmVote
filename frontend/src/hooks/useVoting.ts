@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useWallet } from '@meshsdk/react'
+import { useWallet } from './useWallet'
 import { BrowserWallet } from '@meshsdk/core'
 import type { BallotChoices } from '../lib/metadataSchema'
 
@@ -58,7 +58,7 @@ function parseBlockchainError(err: unknown): VotingError {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function useVoting(): UseVotingReturn {
-  const { wallet, connected } = useWallet()
+  const { wallet, isConnected: connected, address } = useWallet()
 
   const [status, setStatus] = useState<VotingStatus>(() => {
     return (localStorage.getItem('AMVOTE_VOTING_STATUS') as VotingStatus) || 'idle'
@@ -70,15 +70,28 @@ export function useVoting(): UseVotingReturn {
   const [errorCode, setErrorCode] = useState<VotingErrorCode | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Automatically clear stale voting sessions when wallet is disconnected
+  const [savedAddress, setSavedAddress] = useState<string | null>(() => {
+    return localStorage.getItem('AMVOTE_VOTER_ADDRESS')
+  })
+
+  // Automatically clear stale voting sessions when wallet is disconnected or address changes
   useEffect(() => {
     if (!connected) {
       setStatus('idle');
       setTxHash(null);
       localStorage.removeItem('AMVOTE_VOTING_STATUS');
       localStorage.removeItem('AMVOTE_TX_HASH');
+      localStorage.removeItem('AMVOTE_VOTER_ADDRESS');
+      setSavedAddress(null);
+    } else if (address && savedAddress && address !== savedAddress) {
+      setStatus('idle');
+      setTxHash(null);
+      localStorage.removeItem('AMVOTE_VOTING_STATUS');
+      localStorage.removeItem('AMVOTE_TX_HASH');
+      localStorage.removeItem('AMVOTE_VOTER_ADDRESS');
+      setSavedAddress(address);
     }
-  }, [connected]);
+  }, [connected, address, savedAddress]);
 
   const setVotingError = (votingError: VotingError, isBurnPhase: boolean = false) => {
     setError(votingError.message)
@@ -152,6 +165,8 @@ export function useVoting(): UseVotingReturn {
       setStatus('confirmed')
       localStorage.setItem('AMVOTE_TX_HASH', submittedHash)
       localStorage.setItem('AMVOTE_VOTING_STATUS', 'confirmed')
+      localStorage.setItem('AMVOTE_VOTER_ADDRESS', address)
+      setSavedAddress(address)
       setError(null)
       setErrorCode(null)
 

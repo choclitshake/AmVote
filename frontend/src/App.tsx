@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { ResultsPage } from './pages/ResultsPage';
 import { VerifyPage } from './pages/VerifyPage';
@@ -12,7 +13,8 @@ function App() {
   return (
     <div className="min-h-screen bg-bg-base">
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/vote" element={<Dashboard />} />
         <Route path="/results" element={<ResultsPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify" element={<VerifyPage />} />
