@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Header } from '../components/Header';
+import { Link } from 'react-router-dom';
 import { electionSettings } from '../data/electionData';
 import { useElectionConfig } from '../hooks/useElectionConfig';
 
@@ -12,6 +12,23 @@ interface ResultsResponse {
   tallies: Record<string, Record<string, number>>;
   lastUpdated: number;
 }
+
+function RefreshIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>;
+}
+function ArrowLeftIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>;
+}
+function ExternalLinkIcon() {
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>;
+}
+
+const rankStyles = [
+  'bg-amber-gradient text-black shadow-amber-sm',
+  'bg-slate-600/50 text-slate-300 border border-slate-500/30',
+  'bg-amber-900/40 text-amber-600/80 border border-amber-800/30',
+];
+const rankLabel = ['1st', '2nd', '3rd'];
 
 export function ResultsPage() {
   const { positions } = useElectionConfig();
@@ -36,69 +53,82 @@ export function ResultsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchResults();
-  }, [fetchResults]);
+  useEffect(() => { fetchResults(); }, [fetchResults]);
 
   return (
     <div className="min-h-screen bg-bg-base">
-      <Header />
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* ── Header row ─────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
+      {/* ── Top bar ─────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b border-bg-border bg-bg-base/90 backdrop-blur-md">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+          <Link to="/" className="flex items-center gap-2 text-sm font-body text-text-muted hover:text-text-primary transition-colors">
+            <ArrowLeftIcon /> AmVote
+          </Link>
+          <div className="flex items-center gap-2">
+            <span className="badge badge-active">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse-slow" />
+              Live Tally
+            </span>
+            <span className="badge badge-muted font-mono">Cardano Preview</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        {/* ── Page header ───────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-2xl font-heading font-bold text-text-primary">Live Results</h2>
-            <p className="text-sm text-text-secondary font-body mt-1">
+            <h1 className="text-3xl font-heading font-bold text-text-primary">Voting Results</h1>
+            <p className="text-sm text-text-secondary font-body mt-1 max-w-lg">
               Tallied directly from on-chain ballots (metadata label{' '}
-              <span className="font-mono text-yellow-300">1337</span>) — anyone can recount from the public ledger.
+              <span className="font-mono text-amber-300">1337</span>) — anyone can independently verify.
             </p>
           </div>
           <button
+            id="results-refresh"
             onClick={fetchResults}
             disabled={loading}
-            className="px-4 py-2 rounded-xl font-heading font-semibold text-sm text-white bg-violet-500 hover:bg-violet-400 disabled:opacity-40 disabled:cursor-not-allowed shadow-violet-glow transition-all duration-200"
+            className="btn-ghost !py-2 !px-4 !text-sm shrink-0 flex items-center gap-2"
           >
-            {loading ? 'Refreshing…' : '↻ Refresh'}
+            <span className={loading ? 'animate-spin' : ''}><RefreshIcon /></span>
+            {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
 
-        {/* ── Total counted ──────────────────────────────────────── */}
-        <div className="bg-bg-surface border border-bg-border rounded-2xl p-5 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs text-text-muted font-body">Total ballots counted</p>
-            <p className="text-3xl font-heading font-bold text-yellow-400">
-              {data ? data.totalVotes : loading ? '…' : 0}
-            </p>
-          </div>
-          <div className="text-right">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-violet-500/15 text-violet-300 border border-violet-500/30">
-              {electionSettings.network === 'preview' ? 'Cardano Preview' : electionSettings.network}
-            </span>
-            {data?.lastUpdated && (
-              <p className="text-xs text-text-muted font-body mt-2">
-                Updated {new Date(data.lastUpdated).toLocaleTimeString()}
-              </p>
-            )}
-          </div>
+        {/* ── Stats row ─────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Total Ballots', value: data ? data.totalVotes : loading ? '…' : '0', accent: 'text-amber-400' },
+            { label: 'Positions', value: positions.length, accent: 'text-violet-400' },
+            { label: 'Network', value: electionSettings.network === 'preview' ? 'Preview' : electionSettings.network, accent: 'text-text-primary' },
+            { label: 'Last Updated', value: data?.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—', accent: 'text-text-secondary' },
+          ].map(s => (
+            <div key={s.label} className="glass-card p-4 text-center">
+              <p className={`text-xl font-heading font-bold ${s.accent}`}>{s.value}</p>
+              <p className="text-xs font-body text-text-muted mt-0.5">{s.label}</p>
+            </div>
+          ))}
         </div>
 
-        {/* ── Error ──────────────────────────────────────────────── */}
+        {/* ── Error ─────────────────────────────────────────── */}
         {error && (
-          <div className="bg-bg-surface border border-red-500/30 rounded-2xl p-4 text-sm text-red-400 font-body">
+          <div className="rounded-xl border border-red-500/25 bg-red-500/8 px-5 py-4 text-sm text-red-400 font-body">
             {error}
           </div>
         )}
 
-        {/* ── Empty state ────────────────────────────────────────── */}
+        {/* ── Empty state ───────────────────────────────────── */}
         {!loading && data && data.totalVotes === 0 && !error && (
-          <div className="bg-bg-surface border border-bg-border rounded-2xl p-6 text-center">
-            <p className="text-sm text-text-muted font-body">
-              No ballots recorded on-chain yet. Cast a vote to see live results appear here.
+          <div className="glass-card p-10 text-center">
+            <div className="w-12 h-12 rounded-full bg-bg-elevated border border-bg-border flex items-center justify-center mx-auto mb-4">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
+            </div>
+            <p className="text-sm font-body text-text-muted">
+              No ballots have been cast yet. Results will appear here in real-time as votes are recorded.
             </p>
           </div>
         )}
 
-        {/* ── Per-position results ───────────────────────────────── */}
+        {/* ── Per-position results ──────────────────────────── */}
         {positions.map(pos => {
           const tally = data?.tallies[pos.id] || {};
           const ranked = pos.candidates
@@ -108,35 +138,56 @@ export function ResultsPage() {
           const maxVotes = Math.max(1, ...ranked.map(r => r.votes));
 
           return (
-            <div key={pos.id} className="bg-bg-surface border border-bg-border rounded-2xl p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-heading font-semibold text-text-primary m-0">{pos.name}</h3>
-                <span className="text-xs text-text-muted font-body">
-                  {posTotal} vote{posTotal === 1 ? '' : 's'}
-                  {pos.maxSelections > 1 ? ` · pick up to ${pos.maxSelections}` : ''}
-                </span>
+            <div key={pos.id} className="glass-card p-5 sm:p-6 space-y-5">
+              {/* Position header */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-7 rounded-full bg-amber-gradient" aria-hidden="true" />
+                  <div>
+                    <h2 className="text-base font-heading font-bold text-text-primary">{pos.name}</h2>
+                    <p className="text-xs text-text-muted font-body">
+                      {posTotal} vote{posTotal !== 1 ? 's' : ''}{pos.maxSelections > 1 ? ` · pick up to ${pos.maxSelections}` : ''}
+                    </p>
+                  </div>
+                </div>
               </div>
 
+              {/* Candidate rows */}
               <div className="space-y-3">
                 {ranked.map((c, i) => {
                   const pct = posTotal > 0 ? Math.round((c.votes / posTotal) * 100) : 0;
                   const barPct = (c.votes / maxVotes) * 100;
-                  const leading = i === 0 && c.votes > 0;
+                  const isLeading = i === 0 && c.votes > 0;
+
                   return (
-                    <div key={c.id}>
-                      <div className="flex items-center justify-between text-sm mb-1 gap-2">
-                        <span className={`font-body truncate ${leading ? 'text-yellow-300 font-semibold' : 'text-text-primary'}`}>
-                          {leading && '★ '}{c.name}
-                          <span className="text-text-muted"> · {c.party}</span>
-                        </span>
-                        <span className="font-mono text-text-secondary shrink-0">
-                          {c.votes} ({pct}%)
-                        </span>
+                    <div key={c.id} className={`rounded-xl p-4 border transition-all duration-200 ${isLeading ? 'border-amber-400/20 bg-amber-400/5' : 'border-bg-border bg-bg-elevated/30'}`}>
+                      <div className="flex items-center gap-3 mb-3">
+                        {/* Rank badge */}
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-heading font-bold shrink-0 ${i < 3 && c.votes > 0 ? rankStyles[i] : 'bg-bg-elevated text-text-muted border border-bg-border'}`}>
+                          {i < 3 && c.votes > 0 ? rankLabel[i] : i + 1}
+                        </div>
+                        {/* Candidate info */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-body font-semibold text-sm truncate ${isLeading ? 'text-amber-300' : 'text-text-primary'}`}>
+                            {c.name}
+                          </p>
+                          <p className="text-xs text-text-muted font-body truncate">{c.party}{c.region ? ` · ${c.region}` : ''}</p>
+                        </div>
+                        {/* Vote count */}
+                        <div className="text-right shrink-0">
+                          <p className={`font-mono font-semibold text-sm ${isLeading ? 'text-amber-300' : 'text-text-secondary'}`}>{c.votes}</p>
+                          <p className="text-xs text-text-muted font-mono">{pct}%</p>
+                        </div>
                       </div>
-                      <div className="h-2 rounded-full bg-bg-elevated overflow-hidden">
+                      {/* Progress bar */}
+                      <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-300 ${leading ? 'bg-yellow-400' : 'bg-violet-500'}`}
+                          className={`h-full rounded-full transition-all duration-700 ${isLeading ? 'bg-amber-gradient' : 'bg-violet-gradient'}`}
                           style={{ width: `${barPct}%` }}
+                          role="progressbar"
+                          aria-valuenow={pct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
                         />
                       </div>
                     </div>
@@ -146,6 +197,16 @@ export function ResultsPage() {
             </div>
           );
         })}
+
+        {/* ── Footer navigation ─────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <Link to="/verify" id="results-verify-link" className="btn-ghost flex-1 justify-center">
+            <ExternalLinkIcon /> Verify a Transaction
+          </Link>
+          <Link to="/" id="results-home-link" className="btn-ghost flex-1 justify-center">
+            <ArrowLeftIcon /> Return Home
+          </Link>
+        </div>
       </main>
     </div>
   );
